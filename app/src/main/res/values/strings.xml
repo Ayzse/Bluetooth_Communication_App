@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Bluetooth</string>
+    <string name="send">Send</string>
+    <string name="save">Save</string>
+    <string name="delete">Delete</string>
+    <string name="command">Command</string>
+    <string-array
+        name="page_titles">
+        <item>Hub</item>
+        <item>Sensors</item>
+    </string-array>
+</resources>
