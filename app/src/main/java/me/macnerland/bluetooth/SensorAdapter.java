@@ -1,6 +1,9 @@
 package me.macnerland.bluetooth;
 
+import android.bluetooth.BluetoothDevice;
+import android.content.Context;
 import android.database.DataSetObserver;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ExpandableListAdapter;
@@ -17,6 +20,25 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     private Vector<SensorData> data;
 
+    private Vector<SensorData> sensors;
+    private Vector<SensorData> expandedSensors;
+    private Context context;
+
+    SensorAdapter(Context c){
+        context = c;
+        sensors = new Vector<>();
+        DSO = new Vector<>();
+    }
+
+    public void addSensor(BluetoothDevice bd, Context c){
+        sensors.add(new SensorData(bd, c));
+    }
+
+    public void notifyDSO(){
+        for(DataSetObserver dso: DSO){
+            dso.onChanged();
+        }
+    }
 
     @Override
     public void registerDataSetObserver(DataSetObserver observer) {
@@ -30,17 +52,17 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     @Override
     public int getGroupCount() {
-        return 0;
+        return sensors.size();
     }
 
     @Override
     public int getChildrenCount(int groupPosition) {
-        return 0;
+        return (sensors.get(groupPosition)).nChildren();
     }
 
     @Override
     public Object getGroup(int groupPosition) {
-        return null;
+        return sensors.get(groupPosition);
     }
 
     @Override
@@ -65,7 +87,13 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     @Override
     public View getGroupView(int groupPosition, boolean isExpanded, View convertView, ViewGroup parent) {
-        return null;
+        View v;
+        LayoutInflater inflater = (LayoutInflater) context
+                .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        v = inflater.inflate(R.layout.sensor_group, parent, false);
+
+
+        return v;
     }
 
     @Override

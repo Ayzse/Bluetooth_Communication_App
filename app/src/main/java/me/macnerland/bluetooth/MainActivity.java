@@ -2,6 +2,7 @@ package me.macnerland.bluetooth;
 
 import android.app.ActionBar;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
@@ -27,8 +28,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.tab_pager);
+        context = this;
 
-        adapter = new mPagerAdapter(this.getSupportFragmentManager(), getResources());
+        adapter = new mPagerAdapter(this.getSupportFragmentManager(), getResources(), context);
         ViewPager vp = (ViewPager) findViewById(R.id.pager);
         vp.setAdapter(adapter);
 
@@ -42,12 +44,16 @@ public class MainActivity extends AppCompatActivity {
         }
         BluetoothLeScanner BLEscanner = bluetoothAdapter.getBluetoothLeScanner();
 
-        BLEscanner.startScan(new ScanCallback() {
-            @Override
-            public void onScanResult(int callbackType, ScanResult result) {
-                super.onScanResult(callbackType, result);
-                Log.i(TAG, result.toString());
-            }
-        });
+        if(BLEscanner != null) {
+            bluetoothAdapter.startLeScan(new BluetoothAdapter.LeScanCallback() {
+                @Override
+                public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
+                    Log.i(TAG, device.toString());
+                    adapter.addSensor(device, context);
+                }
+
+
+            });
+        }
     }
 }

@@ -1,5 +1,6 @@
 package me.macnerland.bluetooth;
 
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 
 import com.jjoe64.graphview.GraphView;
@@ -14,9 +15,22 @@ public class SensorData {
 
     Context context;
     GraphView graph;
+    public BluetoothDevice device;
 
-    SensorData(Context c){
+    SensorData(BluetoothDevice bd, Context c){
         context = c;
+        device = bd;
     }
 
+    public void update(){
+
+    }
+
+    public boolean isExpanded(){
+        return false;
+    }
+
+    public int nChildren(){
+        return 0;
+    }
 }

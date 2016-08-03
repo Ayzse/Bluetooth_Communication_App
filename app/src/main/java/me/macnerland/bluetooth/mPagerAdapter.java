@@ -1,5 +1,7 @@
 package me.macnerland.bluetooth;
 
+import android.bluetooth.BluetoothDevice;
+import android.content.Context;
 import android.content.res.Resources;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
@@ -21,6 +23,7 @@ public class mPagerAdapter extends FragmentPagerAdapter {
     private HubFragment hubFragment;
     private SensorFragment sensorFragment;
 
+    private Context context;
 
     private SensorAdapter sensorAdapter;
 
@@ -35,8 +38,10 @@ public class mPagerAdapter extends FragmentPagerAdapter {
         return 2;
     }
 
-    mPagerAdapter(FragmentManager fm, Resources r){
+    mPagerAdapter(FragmentManager fm, Resources r, Context c){
         super(fm);
+        context = c;
+        sensorAdapter = new SensorAdapter(context);
         res = r;
 
         fragments = new Fragment[2];
@@ -45,9 +50,13 @@ public class mPagerAdapter extends FragmentPagerAdapter {
         fragments[0] = new HubFragment();
 
         SensorFragment sensorFragment = new SensorFragment();
-        sensorAdapter = new SensorAdapter();
         //sensorFragment.setListAdapter(sensorAdapter);
         fragments[1] = (Fragment)sensorFragment;
+    }
+
+    public void addSensor(BluetoothDevice bd, Context c){
+        sensorAdapter.addSensor(bd, c);
+        sensorAdapter.notifyDSO();
     }
 
     @Override
