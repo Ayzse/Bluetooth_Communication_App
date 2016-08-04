@@ -59,6 +59,10 @@ public class mPagerAdapter extends FragmentPagerAdapter {
         sensorAdapter.notifyDSO();
     }
 
+    public void addHub(){
+
+    }
+
     @Override
     public CharSequence getPageTitle(int position){
         return titles[position];
