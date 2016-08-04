@@ -1,6 +1,7 @@
 package me.macnerland.bluetooth;
 
 import android.app.ActionBar;
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
@@ -40,45 +41,6 @@ public class MainActivity extends AppCompatActivity {
         vp.setAdapter(adapter);
 
 
-        BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
-        //if bluetooth is disabled, launch an intent to enable it.
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-        }
-        BluetoothLeScanner BLEscanner = bluetoothAdapter.getBluetoothLeScanner();
 
-
-        UUID hubGattUUID =      new UUID(0x0000ece000001000L, 0x800000805f9b34fbL);
-        UUID sensorGattUUID =   new UUID(0x0000feed00001000L, 0x800000805f9b34fbL);
-        UUID[] gattServices = new UUID[2];
-        gattServices[1] = sensorGattUUID;
-        gattServices[0] = sensorGattUUID;
-        Log.i(TAG, gattServices[0].toString());
-        if(BLEscanner != null) {
-            bluetoothAdapter.startLeScan(gattServices, new BluetoothAdapter.LeScanCallback() {
-                @Override
-                public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
-                    Log.i(TAG, device.toString());
-                    StringBuilder str = new StringBuilder();
-                    for(byte b : scanRecord) {
-                        str.append((Byte) b);
-                        str.append(' ');
-                    }
-                    Log.i(TAG, str.toString());
-                    ParcelUuid[] p = device.getUuids();
-                    Log.i(TAG, device.getAddress());
-                    if(p != null) {
-                        Log.i(TAG, device.getUuids().toString());
-                    }
-
-                    //adapter.addHub(device, context);
-                    adapter.addSensor(device, context);
-                }
-
-
-            });
-        }
     }
 }
