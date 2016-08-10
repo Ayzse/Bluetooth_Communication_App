@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
+import android.bluetooth.BluetoothSocket;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.content.Context;
 import android.content.Intent;
@@ -15,8 +16,11 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.app.ListFragment;
 import android.util.Log;
+import android.widget.ExpandableListView;
 import android.widget.SimpleAdapter;
 
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.UUID;
 
 /**
@@ -38,10 +42,12 @@ public class mPagerAdapter extends FragmentPagerAdapter {
 
     private SensorAdapter sensorAdapter;
 
-    UUID hubGattUUID =      new UUID(0x0000ece000001000L, 0x800000805f9b34fbL);
-    UUID sensorGattUUID =   new UUID(0x0000feed00001000L, 0x800000805f9b34fbL);
-    UUID[] hubUUID = {hubGattUUID};
-    UUID[] sensorUUID = {sensorGattUUID};
+    private byte[] getHubID = {0x02, 0x20, 0x0a};
+
+
+
+    UUID commonSerial =     new UUID(0x0000110100001000L, 0x800000805f9b34fbL);
+
 
     @Override
     public Fragment getItem(int position) {
@@ -65,79 +71,40 @@ public class mPagerAdapter extends FragmentPagerAdapter {
         Bundle args = new Bundle();
 
         fragments = new Fragment[2];
-        titles = res.getStringArray(R.array.page_titles);
 
+        titles = res.getStringArray(R.array.page_titles);
         fragments[0] = new HubFragment();
 
+
         SensorFragment sensorFragment = new SensorFragment();
-        //sensorFragment.setListAdapter(sensorAdapter);
         fragments[1] = (Fragment)sensorFragment;
 
 
     }
 
-    public void scanForHub(){
-        BluetoothManager bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
-        BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
-        //if bluetooth is disabled, launch an intent to enable it.
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            activity.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+    public void addHub(BluetoothDevice device){
+        try {
+            BluetoothSocket bs = device.createInsecureRfcommSocketToServiceRecord(commonSerial);
+            Log.d(TAG, "Socket retrieved");
+            bs.connect();
+            Log.d(TAG, "Connecting");
+            while(!bs.isConnected());
+            OutputStream os = bs.getOutputStream();
+            byte[] out = {0x0a};
+            byte[] buf = new byte[300];
+            os.write(getHubID);
+            Log.d(TAG, "sent byte buffer");
+            InputStream is = bs.getInputStream();
+            is.read(buf);
+
+        }catch(java.io.IOException e){
+            Log.d(TAG, "Failed to create connection with exception:\n" + e.toString());
         }
-
-        bluetoothAdapter.startLeScan(hubUUID, hubScanCallback);
-    }
-
-    public void scanForSensor(){
-        BluetoothManager bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
-        BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
-        //if bluetooth is disabled, launch an intent to enable it.
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            activity.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-        }
-
-        bluetoothAdapter.startLeScan(sensorUUID, sensorScanCallback);
-    }
-
-    public void addSensor(BluetoothDevice bd, Context c){
-        sensorAdapter.addSensor(bd, c);
-        sensorAdapter.notifyDSO();
-    }
-
-    public void addHub(){
-
     }
 
     public void sensorScan(){
 
     }
-
-    public BluetoothAdapter.LeScanCallback hubScanCallback = new BluetoothAdapter.LeScanCallback(){
-        @Override
-        public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
-            Log.i(TAG, device.toString());
-            StringBuilder str = new StringBuilder();
-            for (byte b : scanRecord) {
-                str.append((Byte) b);
-                str.append(' ');
-            }
-            Log.i(TAG, str.toString());
-            ParcelUuid[] p = device.getUuids();
-            Log.i(TAG, device.getAddress());
-            if (p != null) {
-                Log.i(TAG, device.getUuids().toString());
-            }
-        }
-    };
-
-    public BluetoothAdapter.LeScanCallback sensorScanCallback = new BluetoothAdapter.LeScanCallback(){
-        @Override
-        public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
-
-        }
-
-    };
 
     @Override
     public CharSequence getPageTitle(int position){

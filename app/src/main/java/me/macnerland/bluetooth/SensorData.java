@@ -1,7 +1,10 @@
 package me.macnerland.bluetooth;
 
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
 import android.content.Context;
+import android.view.View;
+import android.view.ViewGroup;
 
 import com.jjoe64.graphview.GraphView;
 
@@ -15,22 +18,62 @@ public class SensorData {
 
     Context context;
     GraphView graph;
-    public BluetoothDevice device;
+    private BluetoothGatt bluetooth;
+    private boolean connected;
+    private boolean expanded;
 
-    SensorData(BluetoothDevice bd, Context c){
+    SensorData(BluetoothGatt bg, Context c){
+        connected = true;
+        bluetooth = bg;
         context = c;
-        device = bd;
+        expanded = false;
+    }
+
+    public boolean isConnected(){
+        return connected;
+    }
+
+    public void Connect(){
+        connected = true;
+    }
+
+    public void Disconnect(){
+        connected = false;
     }
 
     public void update(){
 
     }
 
+    public BluetoothGatt getGATT(){
+        return bluetooth;
+    }
+
+    public View getChildView(int child, View convertView, ViewGroup parent){
+
+        switch(child){
+
+        }
+        return null;
+    }
+
     public boolean isExpanded(){
-        return false;
+        return expanded;
+    }
+
+    public void expand(){
+        expanded = true;
+    }
+
+    public void collapse(){
+        expanded = false;
     }
 
     public int nChildren(){
-        return 0;
+        if(expanded){
+            return 2;
+        }else{
+            return 0;
+        }
     }
 }

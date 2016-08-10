@@ -17,13 +17,7 @@ public class HubFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.hub_interface, container, false);
-        Button send = (Button)rootView.findViewById(R.id.SendBtn);
-        send.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
 
-            }
-        });
         return rootView;
     }
 }

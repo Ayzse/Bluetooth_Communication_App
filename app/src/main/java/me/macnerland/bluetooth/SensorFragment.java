@@ -20,7 +20,9 @@ public class SensorFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.sensor_interface, container, false);
+        SensorAdapter sensorAdapter = MainActivity.getSensorAdapter();
         ExpandableListView elv = (ExpandableListView)rootView.findViewById(R.id.elv);
+        elv.setAdapter(sensorAdapter);
         return rootView;
     }
 }
