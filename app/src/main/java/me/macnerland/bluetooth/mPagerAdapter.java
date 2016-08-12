@@ -82,6 +82,10 @@ public class mPagerAdapter extends FragmentPagerAdapter {
 
     }
 
+    public void refreshUI(){
+        fragments[0] = new HubFragment();
+    }
+
     public void addHub(BluetoothDevice device){
         try {
             BluetoothSocket bs = device.createInsecureRfcommSocketToServiceRecord(commonSerial);

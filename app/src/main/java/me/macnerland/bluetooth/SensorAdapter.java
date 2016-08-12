@@ -2,8 +2,11 @@ package me.macnerland.bluetooth;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
 import android.content.Context;
 import android.database.DataSetObserver;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,6 +14,9 @@ import android.widget.ExpandableListAdapter;
 import android.widget.TextView;
 
 import java.util.Hashtable;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.Vector;
 
 /**
@@ -18,6 +24,7 @@ import java.util.Vector;
  * Created by Doug on 7/31/2016.
  */
 public class SensorAdapter implements ExpandableListAdapter {
+    private static final String TAG = "Sensor";
 
     private Vector<DataSetObserver> DSO;
 
@@ -30,6 +37,12 @@ public class SensorAdapter implements ExpandableListAdapter {
     private Vector<SensorData> expandedSensors;
     private Context context;
 
+    private static final UUID sensorServiceGattUUID = UUID.fromString("0000feed-0000-1000-8000-00805f9b34fb");
+    private static final UUID sensorCharacteristicUUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
+
+    private static final byte[] TempCommand = {(byte)'1', (byte)'\n', (byte)'\0'};
+    private static final byte[] HumidCommand = {(byte)'2', (byte)'\n', (byte)'\0'};
+
     SensorAdapter(Context c){
         context = c;
         sensors = new Vector<>();
@@ -41,16 +54,91 @@ public class SensorAdapter implements ExpandableListAdapter {
     public void addSensor(BluetoothGatt bg, Context c){
         String address = bg.getDevice().getAddress();
         if(!sensorConnect.keySet().contains(address)) {
-            sensorConnect.put(address, true);
+            sensorConnect.put(address, false);
             sensors.add(new SensorData(bg, c));
+            //enter the address into the indexor
+            sensorIndex.put(address, sensors.size() - 1);
         }else{
             sensorConnect.put(address, true);
         }
         notifyDSO();
     }
 
-    public void connectSensor(String address){
+    public void updateNotification(String address){
+        BluetoothGatt bg = sensors.get(sensorIndex.get(address)).getGATT();
+        BluetoothGattService bgs = bg.getService(sensorServiceGattUUID);
+        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(sensorCharacteristicUUID);
+        int properties = bgc.getProperties();
+        if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
+            bg.setCharacteristicNotification(bgc, true);
+        }
+    }
 
+    //write command to fetch the temps from all connected sensors
+    public void updateTemperature(){
+        Log.i(TAG, "Getting data");
+        Set<String> keys = sensorConnect.keySet();
+
+        for(String con : keys){
+            if(sensorConnect.get(con)){
+                BluetoothGatt gatt = sensors.get(sensorIndex.get(con)).getGATT();
+                BluetoothGattCharacteristic bgc =
+                        gatt.getService(sensorServiceGattUUID).getCharacteristic(sensorCharacteristicUUID);
+                bgc.setValue(TempCommand);
+                gatt.writeCharacteristic(bgc);
+            }
+        }
+
+        for(String con : keys){
+            if(sensorConnect.get(con)){
+                BluetoothGatt gatt = sensors.get(sensorIndex.get(con)).getGATT();
+                BluetoothGattCharacteristic bgc =
+                        gatt.getService(sensorServiceGattUUID).getCharacteristic(sensorCharacteristicUUID);
+                gatt.readCharacteristic(bgc);
+            }
+        }
+    }
+
+    public void updateHumidity(){
+        Log.i(TAG, "Getting data");
+        Set<String> keys = sensorConnect.keySet();
+        Log.i(TAG, "Command: " + new String(HumidCommand));
+        for(String con : keys){
+            if(sensorConnect.get(con)){
+                Log.i(TAG, "asking humidity from connected sensor");
+                BluetoothGatt gatt = sensors.get(sensorIndex.get(con)).getGATT();
+                BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                if(bs == null){
+                    //services have not ben discovered
+                    break;
+                }
+                BluetoothGattCharacteristic bgc =
+                        bs.getCharacteristic(sensorCharacteristicUUID);
+                if(bgc == null){
+                    Log.i(TAG, "null characteristic");
+                }else {
+                    bgc.setValue(HumidCommand);
+                    gatt.writeCharacteristic(bgc);
+                }
+            }
+        }
+        for(String con : keys){
+            if(sensorConnect.get(con)){
+                Log.i(TAG, "retrieving from connected sensor");
+                BluetoothGatt gatt = sensors.get(sensorIndex.get(con)).getGATT();
+                BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                if(bs == null) break;
+                BluetoothGattCharacteristic bgc =
+                        bs.getCharacteristic(sensorCharacteristicUUID);
+                gatt.readCharacteristic(bgc);
+            }
+        }
+    }
+
+    public void connectSensor(String address){
+        if(sensorConnect.keySet().contains(address)){
+            sensorConnect.put(address, true);
+        }
     }
 
     public void disconnectSensor(String address){

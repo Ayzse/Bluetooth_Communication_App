@@ -10,6 +10,20 @@
         android:id="@+id/scan_for_sensors"
         android:onClick="scanForSensor"/>
 
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Get Humidity"
+        android:id="@+id/getH"
+        android:onClick="updateH"/>
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Get Temperature"
+        android:id="@+id/getT"
+        android:onClick="updateT"/>
+
     <ExpandableListView
         android:id="@+id/elv"
         android:layout_width="match_parent"
