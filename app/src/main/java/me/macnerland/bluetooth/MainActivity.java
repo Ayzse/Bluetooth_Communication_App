@@ -229,6 +229,7 @@ public class MainActivity extends AppCompatActivity {
             } else if (BluetoothService.SENSOR_ACTION_DATA_AVAILABLE.equals(action)) {
                 Log.e(TAG, "New DATA" + intent.getAction());
                 Log.e(TAG, "Data:" + intent.getStringExtra(BluetoothService.EXTRA_DATA) + address);
+                sensorAdapter.deliverData(address, intent.getStringExtra(BluetoothService.EXTRA_DATA));
             } else if (BluetoothService.HUB_ACTION_GATT_SERVICES_DISCOVERED.equals(action)){
                 BluetoothGatt bg = hubAdapter.getHub(address).getGATT();
                 BluetoothGattService bgs = bg.getService(hubServiceGattUUID);

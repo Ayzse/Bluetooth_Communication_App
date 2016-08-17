@@ -21,12 +21,17 @@ public class SensorData {
     private BluetoothGatt bluetooth;
     private boolean connected;
     private boolean expanded;
+    Float currTemp;
+    Float currHumid;
 
     SensorData(BluetoothGatt bg, Context c){
         connected = true;
         bluetooth = bg;
         context = c;
         expanded = false;
+
+        currHumid = 0.0f;
+        currTemp = 0.0f;
     }
 
     public boolean isConnected(){
@@ -41,8 +46,20 @@ public class SensorData {
         connected = false;
     }
 
-    public void update(){
+    public void updateTemp(String T){
+        currTemp = Float.parseFloat(T);
+    }
 
+    public void updateHumid(String rH){
+        currHumid = Float.parseFloat(rH);
+    }
+
+    public Float getTemp(){
+        return currTemp;
+    }
+
+    public Float getHumid(){
+        return currHumid;
     }
 
     public BluetoothGatt getGATT(){
