@@ -171,7 +171,7 @@ public class BluetoothService extends Service {
             }
         }
 
-        @Override
+        /*@Override
         public void onCharacteristicRead(BluetoothGatt gatt,
                                          BluetoothGattCharacteristic characteristic,
                                          int status) {
@@ -182,7 +182,7 @@ public class BluetoothService extends Service {
             }else{
                 Log.e(TAG, "read was not a success");
             }
-        }
+        }*/
 
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
@@ -276,7 +276,7 @@ public class BluetoothService extends Service {
             final StringBuilder stringBuilder = new StringBuilder(data.length);
             for(byte byteChar : data)
                 stringBuilder.append(String.format("%02X ", byteChar));
-            intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
+            intent.putExtra(EXTRA_DATA, new String(data));// + "\n" + stringBuilder.toString());
             Log.w(TAG, "data in service:" + stringBuilder.toString());
         }
         intent.putExtra(ADDRESS_DATA, address);

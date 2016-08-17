@@ -24,6 +24,11 @@ public class SensorData {
     Float currTemp;
     Float currHumid;
 
+    public int dataState;
+    public static final int NO_DATA_PENDING = 0;
+    public static final int TEMPERATURE_DATA_PENDING = 1;
+    public static final int HUMIDITY_DATA_PENDING = 2;
+
     SensorData(BluetoothGatt bg, Context c){
         connected = true;
         bluetooth = bg;

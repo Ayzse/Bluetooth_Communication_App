@@ -94,14 +94,14 @@ public class HubAdapter implements ListAdapter {
         View v;
         LayoutInflater inflater = (LayoutInflater) context
                 .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        v = inflater.inflate(R.layout.sensor_group, parent, false);
+        v = inflater.inflate(R.layout.hub_item, parent, false);
 
         HubData hub = hubs.get(position);
 
         String hubAlertNumber = "Alert number: " + hub.getAlertNumber();
         String hubPortalNumber = "Portal number: " + hub.getPortalNumber();
         String hubPortalFreq = "Portal Frequency: " + hub.getPortalFreq();
-        String hubLogFreq = "Logging Frequency: " + hub.getPortalFreq();
+        String hubLogFreq = "Logging Frequency: " + hub.getLogFrequency();
         String hubTime = "Time: " + hub.getTime();
         String hubDate = "Date: " + hub.getDate();
         String hubCritTemp = "Critical Temperature: " + hub.getCriticalTemperature();

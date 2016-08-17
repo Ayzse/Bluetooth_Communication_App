@@ -110,7 +110,7 @@ public class HubData {
     }
 
     public String getLogFrequency(){
-        return hubPortalNumber;
+        return hubLogFreq;
     }
 
     public String getTime(){

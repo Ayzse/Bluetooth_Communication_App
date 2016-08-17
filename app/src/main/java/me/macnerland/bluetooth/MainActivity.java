@@ -65,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static BluetoothService bluetooth;
 
-    private static final byte[] TempCommand = {(byte)'2', (byte)'\n'};
+    /*private static final byte[] TempCommand = {(byte)'2', (byte)'\n'};
     private static final byte[] HumidCommand = {(byte)'1', (byte)'\n'};
 
     private static final byte[] getAlertNumber = {(byte)'1', (byte)'1', (byte)' ', (byte)'\n'};
@@ -76,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
     private static final byte[] getHubDate = {(byte)'2', (byte)'1', (byte)' ', (byte)'\n'};
     private static final byte[] getCritTemp = {(byte)'2', (byte)'3', (byte)' ', (byte)'\n'};
     private static final byte[] getCritHum = {(byte)'2', (byte)'5', (byte)' ', (byte)'\n'};
-
+*/
     private static String hubAlertNumber;
     private static String hubPortalNumber;
     private static String hubPortalFreq;
@@ -191,7 +191,6 @@ public class MainActivity extends AppCompatActivity {
     public class conn implements ServiceConnection{
         @Override
         public void onServiceConnected(ComponentName name, IBinder service){
-            Log.i(TAG, "Connected!");
             boolean firstConnect = bluetooth == null;
             bluetooth = ((BluetoothService.LocalBinder) service).getService();
             if(firstConnect){
@@ -227,9 +226,13 @@ public class MainActivity extends AppCompatActivity {
                 sensorAdapter.updateNotification(address);
 
             } else if (BluetoothService.SENSOR_ACTION_DATA_AVAILABLE.equals(action)) {
+                String data = intent.getStringExtra(BluetoothService.EXTRA_DATA);
+                //Bundle b = intent.getExtras();
                 Log.e(TAG, "New DATA" + intent.getAction());
-                Log.e(TAG, "Data:" + intent.getStringExtra(BluetoothService.EXTRA_DATA) + address);
-                sensorAdapter.deliverData(address, intent.getStringExtra(BluetoothService.EXTRA_DATA));
+                Log.e(TAG, "Data:" + data + address);
+                sensorAdapter.deliverData(address, data);
+                Log.e(TAG, "data delivered" + data);
+                sensorAdapter.notifyDSO();
             } else if (BluetoothService.HUB_ACTION_GATT_SERVICES_DISCOVERED.equals(action)){
                 BluetoothGatt bg = hubAdapter.getHub(address).getGATT();
                 BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
