@@ -83,8 +83,6 @@ public class mPagerAdapter extends FragmentPagerAdapter {
 
         SensorFragment sensorFragment = new SensorFragment();
         fragments[1] = (Fragment)sensorFragment;
-
-
     }
 
     @Override
@@ -106,26 +104,6 @@ public class mPagerAdapter extends FragmentPagerAdapter {
             d.onChanged();
         }
         fragments[0] = new HubFragment();
-    }
-
-    public void addHub(BluetoothDevice device){
-        try {
-            BluetoothSocket bs = device.createInsecureRfcommSocketToServiceRecord(commonSerial);
-            Log.d(TAG, "Socket retrieved");
-            bs.connect();
-            Log.d(TAG, "Connecting");
-            while(!bs.isConnected());
-            OutputStream os = bs.getOutputStream();
-            byte[] out = {0x0a};
-            byte[] buf = new byte[300];
-            os.write(getHubID);
-            Log.d(TAG, "sent byte buffer");
-            InputStream is = bs.getInputStream();
-            is.read(buf);
-
-        }catch(java.io.IOException e){
-            Log.d(TAG, "Failed to create connection with exception:\n" + e.toString());
-        }
     }
 
     public void sensorScan(){

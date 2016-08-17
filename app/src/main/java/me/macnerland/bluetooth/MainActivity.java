@@ -137,30 +137,8 @@ public class MainActivity extends AppCompatActivity {
         registerReceiver(mGattUpdateReceiver, getGATTFilters());
     }
 
-    public static String getHubAlertNumber(){
-        return hubAlertNumber;
-    }
-    public static String getHubPortalNumber(){
-        return hubPortalNumber;
-    }
-    public static String getHubPortalFreq() {
-        return hubPortalFreq;
-    }
-    public static String getHubLogFreq(){
-        return hubLogFreq;
-    }
-    public static String getHubTime(){
-        return hubTime;
-    }
-    public static String getHubDate(){
-        return hubDate;
-    }
-    public static String getHubCritTemp(){
-        return hubCritTemp;
-    }
-    public static String getHubCritHum(){
-        Log.wtf(TAG, "Crit Hum: " + hubCritHum);
-        return hubCritHum;
+    public static HubAdapter getHubAdapter(){
+        return hubAdapter;
     }
 
     public static SensorAdapter getSensorAdapter(){
