@@ -34,6 +34,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ExpandableListAdapter;
+import android.widget.SimpleExpandableListAdapter;
 
 import java.util.Hashtable;
 import java.util.List;
@@ -57,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
     private static UUID commonSerial =     new UUID(0x0000110100001000L, 0x800000805f9b34fbL);
 
     private static SensorAdapter sensorAdapter;
+    private static HubAdapter hubAdapter;
 
     private static BluetoothManager bluetoothManager;
     private static BluetoothAdapter bluetoothAdapter;
@@ -75,8 +77,6 @@ public class MainActivity extends AppCompatActivity {
     private static final byte[] getCritTemp = {(byte)'2', (byte)'3', (byte)' ', (byte)'\n'};
     private static final byte[] getCritHum = {(byte)'2', (byte)'5', (byte)' ', (byte)'\n'};
 
-
-    private static Hashtable<String, BluetoothGatt> hubs;
     private static String hubAlertNumber;
     private static String hubPortalNumber;
     private static String hubPortalFreq;
@@ -85,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
     private static String hubDate;
     private static String hubCritTemp;
     private static String hubCritHum;
+
     private final int HUB_NO_DATA_PENDING = 0;
     private final int HUB_ALERT_PHONE_NUMBER_PENDING = 1;
     private final int HUB_PORTAL_PHONE_NUMBER_PENDING = 2;
@@ -100,10 +101,20 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.tab_pager);
         hubDataState = HUB_NO_DATA_PENDING;
-        hubs = new Hashtable<>();
+
+        hubAlertNumber = "No Hub Connected";
+        hubPortalNumber = "No Hub Connected";
+        hubPortalFreq = "No Hub Connected";
+        hubLogFreq = "No Hub Connected";
+        hubTime = "No Hub Connected";
+        hubDate = "No Hub Connected";
+        hubCritTemp = "No Hub Connected";
+        hubCritHum = "No Hub Connected";
+
         context = this;
         bluetooth = null;
         sensorAdapter = new SensorAdapter(context);
+        hubAdapter = hubAdapter;
 
         adapter = new mPagerAdapter(this.getSupportFragmentManager(), getResources(), context);
         ViewPager vp = (ViewPager) findViewById(R.id.pager);
@@ -124,103 +135,6 @@ public class MainActivity extends AppCompatActivity {
         bindService(btIntent, con, BIND_AUTO_CREATE);
 
         registerReceiver(mGattUpdateReceiver, getGATTFilters());
-    }
-
-    public void getTime(){
-        bluetoothAdapter.stopLeScan(hubScanCallback);
-        Set<String> keys = hubs.keySet();
-        for(String key : keys){
-            BluetoothGatt bg = hubs.get(key);
-            BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
-            BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-            bgc.setValue(getHubTime);
-            hubDataState = HUB_TIME_PENDING;
-            bg.writeCharacteristic(bgc);
-        }
-    }
-
-    public void getPortalNumber(){
-        Set<String> keys = hubs.keySet();
-        for(String key : keys){
-            BluetoothGatt bg = hubs.get(key);
-            BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
-            BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-            bgc.setValue(getPortalNumber);
-            hubDataState = HUB_PORTAL_PHONE_NUMBER_PENDING;
-            bg.writeCharacteristic(bgc);
-        }
-    }
-
-    public void getAlertNumber(){
-        Set<String> keys = hubs.keySet();
-        for(String key : keys){
-            BluetoothGatt bg = hubs.get(key);
-            BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
-            BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-            bgc.setValue(getAlertNumber);
-            hubDataState = HUB_ALERT_PHONE_NUMBER_PENDING;
-            bg.writeCharacteristic(bgc);
-        }
-    }
-
-    public void getPortalFrequency(){
-        Set<String> keys = hubs.keySet();
-        for(String key : keys){
-            BluetoothGatt bg = hubs.get(key);
-            BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
-            BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-            bgc.setValue(getPortalFreq);
-            hubDataState = HUB_PORTAL_FREQ_PENDING;
-            bg.writeCharacteristic(bgc);
-        }
-    }
-
-    public void getLogFrequency(){
-        Set<String> keys = hubs.keySet();
-        for(String key : keys){
-            BluetoothGatt bg = hubs.get(key);
-            BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
-            BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-            bgc.setValue(getLogFreq);
-            hubDataState = HUB_LOG_FREQ_PENDING;
-            bg.writeCharacteristic(bgc);
-        }
-    }
-
-    public void getDate(){
-        Set<String> keys = hubs.keySet();
-        for(String key : keys){
-            BluetoothGatt bg = hubs.get(key);
-            BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
-            BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-            bgc.setValue(getHubDate);
-            hubDataState = HUB_DATE_PENDING;
-            bg.writeCharacteristic(bgc);
-        }
-    }
-
-    public void getCritTemp(){
-        Set<String> keys = hubs.keySet();
-        for(String key : keys){
-            BluetoothGatt bg = hubs.get(key);
-            BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
-            BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-            bgc.setValue(getCritTemp);
-            hubDataState = HUB_CRIT_TEMP_PENDING;
-            bg.writeCharacteristic(bgc);
-        }
-    }
-
-    public void getCritHumid(){
-        Set<String> keys = hubs.keySet();
-        for(String key : keys){
-            BluetoothGatt bg = hubs.get(key);
-            BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
-            BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-            bgc.setValue(getCritHum);
-            hubDataState = HUB_CRIT_HUM_PENDING;
-            bg.writeCharacteristic(bgc);
-        }
     }
 
     public static String getHubAlertNumber(){
@@ -245,6 +159,7 @@ public class MainActivity extends AppCompatActivity {
         return hubCritTemp;
     }
     public static String getHubCritHum(){
+        Log.wtf(TAG, "Crit Hum: " + hubCritHum);
         return hubCritHum;
     }
 
@@ -283,7 +198,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
             BluetoothGatt hubGatt = device.connectGatt(context, true, bluetooth.hubGattCallback);
-            hubs.put(device.getAddress(), hubGatt);
+            hubAdapter.addHub(hubGatt);
         }
     };
 
@@ -337,47 +252,58 @@ public class MainActivity extends AppCompatActivity {
                 Log.e(TAG, "New DATA" + intent.getAction());
                 Log.e(TAG, "Data:" + intent.getStringExtra(BluetoothService.EXTRA_DATA) + address);
             } else if (BluetoothService.HUB_ACTION_GATT_SERVICES_DISCOVERED.equals(action)){
-                BluetoothGatt bg = hubs.get(address);
+                BluetoothGatt bg = hubAdapter.getHub(address).getGATT();
                 BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
                 BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
                 int properties = bgc.getProperties();
                 if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
                     bg.setCharacteristicNotification(bgc, true);
                 }
-                getPortalNumber();
+                hubAdapter.getHub(address).fetchAlertNumber();
+                hubDataState++;
             } else if (BluetoothService.HUB_ACTION_DATA_AVAILABLE.equals(action)){
                 String value = intent.getStringExtra(BluetoothService.EXTRA_DATA);
+                HubData hub = hubAdapter.getHub(address);
+                Log.i(TAG, "Value: " + value);
                 switch(hubDataState){
+                    case HUB_ALERT_PHONE_NUMBER_PENDING:
+                        hub.setAlertNumber(value);
+                        hub.fetchPortalNumber();
+                        break;
                     case HUB_PORTAL_PHONE_NUMBER_PENDING:
-                        hubPortalNumber = value;
-                        getPortalFrequency();
+                        hub.setPortalNumber(value);
+                        hub.fetchPortalFreq();
+                        break;
                     case HUB_PORTAL_FREQ_PENDING:
-                        hubPortalFreq = value;
-                        getLogFrequency();
+                        hub.setPortalFreq(value);
+                        hub.fetchLogFreq();
                         break;
                     case HUB_LOG_FREQ_PENDING:
-                        hubLogFreq = value;
-                        getTime();
+                        hub.setLogFrequency(value);
+                        hub.fetchTime();
                         break;
                     case HUB_TIME_PENDING:
                         Log.e(TAG, "The Time is:" + value);
-                        hubTime = value;
-                        getDate();
+                        hub.setTime(value);
+                        hub.fetchDate();
                         break;
                     case HUB_DATE_PENDING:
-                        hubDate = value;
-                        getCritTemp();
+                        hub.setDate(value);
+                        hub.fetchCritTemp();
                         break;
                     case HUB_CRIT_TEMP_PENDING:
-                        hubCritTemp = value;
-                        getCritHumid();
+                        hub.setCriticalTemperature(value);
+                        hub.fetchCritHumid();
                         break;
                     case HUB_CRIT_HUM_PENDING:
                         hubCritHum = value;
-                        adapter.refreshUI();
+                        Log.w(TAG, "Refreshing UI");
+                        hubAdapter.notifyDSO();
+                        //adapter.refreshUI();
+                        //adapter.notifyDataSetChanged();
                         break;
-
                 }
+                hubDataState++;
             }
         }
     };

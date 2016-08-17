@@ -29,21 +29,21 @@ public class HubFragment extends Fragment {
         String hubCritHum = MainActivity.getHubCritHum();
 
         TextView alertNumber = (TextView)rootView.findViewById(R.id.alertNumber);
-        alertNumber.setText(hubAlertNumber);
+        alertNumber.setText("Alert phone number: " + hubAlertNumber);
         TextView portalNumber = (TextView)rootView.findViewById(R.id.portalNumber);
-        portalNumber.setText(hubPortalNumber);
+        portalNumber.setText("Portal number: " + hubPortalNumber);
         TextView portalFreq = (TextView)rootView.findViewById(R.id.portalFreq);
-        portalFreq.setText(hubPortalFreq);
+        portalFreq.setText("Portal message frequency: " + hubPortalFreq);
         TextView logFreq = (TextView)rootView.findViewById(R.id.logFreq);
-        logFreq.setText(hubLogFreq);
+        logFreq.setText("Sensor logging frequency: " + hubLogFreq);
         TextView time = (TextView)rootView.findViewById(R.id.hubTime);
-        time.setText(hubTime);
+        time.setText("Hub time: " + hubTime);
         TextView date = (TextView)rootView.findViewById(R.id.hubDate);
-        date.setText(hubDate);
+        date.setText("Hub date: " + hubDate);
         TextView critTemp = (TextView)rootView.findViewById(R.id.critTemp);
-        critTemp.setText(hubCritTemp);
+        critTemp.setText("Critical temperature threshold: " + hubCritTemp);
         TextView critHum = (TextView)rootView.findViewById(R.id.critHumid);
-        critHum.setText(hubCritHum);
+        critHum.setText("Critical humidity threshold: " + hubCritHum);
         return rootView;
     }
 }

@@ -245,13 +245,13 @@ public class BluetoothService extends Service {
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             super.onCharacteristicWrite(gatt, characteristic, status);
             Log.e(TAG, "Writing characteristic status: " + status + " " + new String(characteristic.getValue()));
-            gatt.readCharacteristic(characteristic);
+            //gatt.readCharacteristic(characteristic);
         }
 
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt,
                                             BluetoothGattCharacteristic characteristic) {
-            //broadcastUpdate(HUB_ACTION_DATA_AVAILABLE, gatt.getDevice().getAddress(), characteristic);
+            broadcastUpdate(HUB_ACTION_DATA_AVAILABLE, gatt.getDevice().getAddress(), characteristic);
         }
     };
 
