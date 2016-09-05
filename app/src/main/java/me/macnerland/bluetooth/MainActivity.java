@@ -77,15 +77,6 @@ public class MainActivity extends AppCompatActivity {
     private static final byte[] getCritTemp = {(byte)'2', (byte)'3', (byte)' ', (byte)'\n'};
     private static final byte[] getCritHum = {(byte)'2', (byte)'5', (byte)' ', (byte)'\n'};
 */
-    private static String hubAlertNumber;
-    private static String hubPortalNumber;
-    private static String hubPortalFreq;
-    private static String hubLogFreq;
-    private static String hubTime;
-    private static String hubDate;
-    private static String hubCritTemp;
-    private static String hubCritHum;
-
     private final int HUB_NO_DATA_PENDING = 0;
     private final int HUB_ALERT_PHONE_NUMBER_PENDING = 1;
     private final int HUB_PORTAL_PHONE_NUMBER_PENDING = 2;
@@ -102,19 +93,10 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.tab_pager);
         hubDataState = HUB_NO_DATA_PENDING;
 
-        hubAlertNumber = "No Hub Connected";
-        hubPortalNumber = "No Hub Connected";
-        hubPortalFreq = "No Hub Connected";
-        hubLogFreq = "No Hub Connected";
-        hubTime = "No Hub Connected";
-        hubDate = "No Hub Connected";
-        hubCritTemp = "No Hub Connected";
-        hubCritHum = "No Hub Connected";
-
         context = this;
         bluetooth = null;
         sensorAdapter = new SensorAdapter(context);
-        hubAdapter = hubAdapter;
+        hubAdapter = new HubAdapter(context);
 
         adapter = new mPagerAdapter(this.getSupportFragmentManager(), getResources(), context);
         ViewPager vp = (ViewPager) findViewById(R.id.pager);
@@ -227,12 +209,12 @@ public class MainActivity extends AppCompatActivity {
 
             } else if (BluetoothService.SENSOR_ACTION_DATA_AVAILABLE.equals(action)) {
                 String data = intent.getStringExtra(BluetoothService.EXTRA_DATA);
-                //Bundle b = intent.getExtras();
-                Log.e(TAG, "New DATA" + intent.getAction());
-                Log.e(TAG, "Data:" + data + address);
-                sensorAdapter.deliverData(address, data);
-                Log.e(TAG, "data delivered" + data);
-                sensorAdapter.notifyDSO();
+                if("Invalid Command".equals(data)){
+                    Log.w(TAG, "Invalid Command");
+                }else {
+                    sensorAdapter.deliverData(address, data);
+                    sensorAdapter.notifyDSO();
+                }
             } else if (BluetoothService.HUB_ACTION_GATT_SERVICES_DISCOVERED.equals(action)){
                 BluetoothGatt bg = hubAdapter.getHub(address).getGATT();
                 BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
@@ -265,7 +247,6 @@ public class MainActivity extends AppCompatActivity {
                         hub.fetchTime();
                         break;
                     case HUB_TIME_PENDING:
-                        Log.e(TAG, "The Time is:" + value);
                         hub.setTime(value);
                         hub.fetchDate();
                         break;
@@ -278,11 +259,9 @@ public class MainActivity extends AppCompatActivity {
                         hub.fetchCritHumid();
                         break;
                     case HUB_CRIT_HUM_PENDING:
-                        hubCritHum = value;
+                        hub.setCriticalHumidity(value);
                         Log.w(TAG, "Refreshing UI");
                         hubAdapter.notifyDSO();
-                        //adapter.refreshUI();
-                        //adapter.notifyDataSetChanged();
                         break;
                 }
                 hubDataState++;

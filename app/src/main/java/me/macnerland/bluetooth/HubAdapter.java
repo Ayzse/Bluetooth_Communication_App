@@ -126,7 +126,7 @@ public class HubAdapter implements ListAdapter {
         critHum.setText(hubCritHum);
 
 
-        return null;
+        return v;
     }
 
     @Override

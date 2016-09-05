@@ -64,7 +64,7 @@ public class HubData {
     }
 
     public void setLogFrequency(String value){
-        hubPortalNumber = value;
+        hubLogFreq = value;
     }
 
     public void setTime(String value){
