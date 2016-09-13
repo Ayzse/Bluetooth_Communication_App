@@ -21,9 +21,9 @@ public class HubFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.hub_interface, container, false);
 
-        HubAdapter ha = MainActivity.getHubAdapter();
-        ListView lv = (ListView)rootView.findViewById(R.id.hubList);
-        lv.setAdapter(ha);
+        HubAdapter mHubAdapter = MainActivity.getHubAdapter();
+        ListView mHubList = (ListView)rootView.findViewById(R.id.hubList);
+        mHubList.setAdapter(mHubAdapter);
         return rootView;
     }
 }

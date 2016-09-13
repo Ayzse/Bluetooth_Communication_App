@@ -28,18 +28,25 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     private Vector<DataSetObserver> DSO;
 
-    private Vector<SensorData> data;
+    //private Hashtable<String, Boolean> sensorConnect;
 
-    private Hashtable<String, Boolean> sensorConnect;
+    /*
+    * The data structure requirements are as follows:
+    *   1. given a String (sensor address), the structure must be able to return
+    *   the associated SensorData object
+    *
+    *   2. The data structure must retain an order, so that it an be iterated through
+    * */
     private Hashtable<String, Integer> sensorIndex;
-
     private Vector<SensorData> sensors;
-    private Vector<SensorData> expandedSensors;
+    private Vector<String> connectedAddresses;
     private Context context;
+
 
     private static final UUID sensorServiceGattUUID = UUID.fromString("0000feed-0000-1000-8000-00805f9b34fb");
     private static final UUID sensorCharacteristicUUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
 
+    //these bytes are used to command the sensor to return values
     private static final byte[] TempCommand = {(byte)'1', (byte)'\n', (byte)'\0'};
     private static final byte[] HumidCommand = {(byte)'2', (byte)'\n', (byte)'\0'};
 
@@ -47,15 +54,20 @@ public class SensorAdapter implements ExpandableListAdapter {
         context = c;
         sensors = new Vector<>();
         DSO = new Vector<>();
-        sensorConnect = new Hashtable<>();
+        connectedAddresses = new Vector<>();
         sensorIndex = new Hashtable<>();
     }
 
     public void addSensor(BluetoothGatt bg, Context c){
         String address = bg.getDevice().getAddress();
-        if(!sensorConnect.keySet().contains(address)) {
-            sensorConnect.put(address, false);
-            sensors.add(new SensorData(bg, c));
+
+        //If this address has never been seen before, add it into the list.
+        if(!sensorIndex.keySet().contains(address)) {
+            //sensorIndex.put(address, false);
+            SensorData data = new SensorData(bg, c);
+            data.Disconnect();
+            sensors.add(data);
+
             //enter the address into the indexor
             sensorIndex.put(address, sensors.size() - 1);
         }
@@ -74,41 +86,31 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     //write command to fetch the temps from all connected sensors
     public void updateTemperature(){
-
-            Log.i(TAG, "Getting data");
-            Set<String> keys = sensorConnect.keySet();
-
-            for (String con : keys) {
-                if (sensorConnect.get(con)) {
-                    BluetoothGatt gatt = sensors.get(sensorIndex.get(con)).getGATT();
+            for (SensorData con : sensors) {
+                if (con.isConnected()) {
+                    BluetoothGatt gatt = con.getGATT();
                     BluetoothGattCharacteristic bgc =
                             gatt.getService(sensorServiceGattUUID).getCharacteristic(sensorCharacteristicUUID);
                     bgc.setValue(TempCommand);
                     gatt.writeCharacteristic(bgc);
                 }
             }
-            for (String con : keys) {
-                if (sensorConnect.get(con)) {
-                    SensorData sensor = sensors.get(sensorIndex.get(con));
-                    BluetoothGatt gatt = sensor.getGATT();
+            for (SensorData con : sensors) {
+                if (con.isConnected()) {
+                    BluetoothGatt gatt = con.getGATT();
                     BluetoothGattCharacteristic bgc =
                             gatt.getService(sensorServiceGattUUID).getCharacteristic(sensorCharacteristicUUID);
                     gatt.readCharacteristic(bgc);
-                    sensor.dataState = sensor.TEMPERATURE_DATA_PENDING;
+                    con.dataState = SensorData.TEMPERATURE_DATA_PENDING;
                 }
             }
 
     }
 
     public void updateHumidity(){
-            Log.i(TAG, "Getting data");
-            Set<String> keys = sensorConnect.keySet();
-            Log.i(TAG, "Command: " + new String(HumidCommand));
-            for (String con : keys) {
-                if (sensorConnect.get(con)) {
-                    Log.i(TAG, "asking humidity from connected sensor");
-                    SensorData sensor = sensors.get(sensorIndex.get(con));
-                    BluetoothGatt gatt = sensor.getGATT();
+            for (SensorData con : sensors) {
+                if (con.isConnected()) {
+                    BluetoothGatt gatt = con.getGATT();
                     BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
                     if (bs == null) {
                         //services have not ben discovered
@@ -121,21 +123,19 @@ public class SensorAdapter implements ExpandableListAdapter {
                     } else {
                         bgc.setValue(HumidCommand);
                         gatt.writeCharacteristic(bgc);
-                        sensor.dataState = sensor.HUMIDITY_DATA_PENDING;
+                        con.dataState = con.HUMIDITY_DATA_PENDING;
                     }
                 }
             }
-            for (String con : keys) {
-                if (sensorConnect.get(con)) {
-                    Log.i(TAG, "retrieving from connected sensor");
-                    SensorData sensor = sensors.get(sensorIndex.get(con));
-                    BluetoothGatt gatt = sensor.getGATT();
+            for (SensorData con : sensors) {
+                if (con.isConnected()) {
+                    BluetoothGatt gatt = con.getGATT();
                     BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
                     if (bs == null) break;
                     BluetoothGattCharacteristic bgc =
                             bs.getCharacteristic(sensorCharacteristicUUID);
                     gatt.readCharacteristic(bgc);
-                    sensor.dataState = SensorData.HUMIDITY_DATA_PENDING;
+                    con.dataState = SensorData.HUMIDITY_DATA_PENDING;
                 }
             }
     }
@@ -157,14 +157,14 @@ public class SensorAdapter implements ExpandableListAdapter {
     }
 
     public void connectSensor(String address){
-        if(sensorConnect.keySet().contains(address)){
-            sensorConnect.put(address, true);
+        if(sensorIndex.keySet().contains(address)){
+            sensors.get(sensorIndex.get(address)).Connect();
         }
     }
 
     public void disconnectSensor(String address){
-        if(sensorConnect.keySet().contains(address)){
-            sensorConnect.put(address, false);
+        if(sensorIndex.keySet().contains(address)){
+            sensors.get(sensorIndex.get(address)).Disconnect();
         }
     }
 
@@ -223,13 +223,14 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     @Override
     public View getGroupView(int groupPosition, boolean isExpanded, View convertView, ViewGroup parent) {
-        View v;
+        /*View v;
         LayoutInflater inflater = (LayoutInflater) context
                 .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        v = inflater.inflate(R.layout.sensor_group, parent, false);
+        v = inflater.inflate(R.layout.sensor_group, parent, false);*/
 
         SensorData sensor = sensors.get(groupPosition);
-
+        return sensor.getParentView(isExpanded, convertView, parent);
+        /*
         TextView groupTitle = (TextView)v.findViewById(R.id.sensor_group_text);
         groupTitle.setText(sensor.getGATT().getDevice().getName());
 
@@ -242,7 +243,7 @@ public class SensorAdapter implements ExpandableListAdapter {
         temp.setText("temperature: " + t.toString() + " C");
         humid.setText("humidity: " + rH.toString()+ "%");
 
-        return v;
+        return v;*/
     }
 
     @Override

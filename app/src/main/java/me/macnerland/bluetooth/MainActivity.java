@@ -47,58 +47,42 @@ public class MainActivity extends AppCompatActivity {
     private final static int REQUEST_ENABLE_BT = 1;
     private static mPagerAdapter adapter;
     private static Context context;
-    private ActionBar actionBar;
 
     private static UUID hubServiceGattUUID =      new UUID(0x0000ffe000001000L, 0x800000805f9b34fbL);
     private static UUID[] hubUUID = {hubServiceGattUUID};
     private static final UUID sensorGattUUID =   new UUID(0x0000feed00001000L, 0x800000805f9b34fbL);
     private static UUID[] sensorUUID = {sensorGattUUID};
-    private static final UUID sensorCharacterGattUUID =   new UUID(0x0000ffe100001000L, 0x800000805f9b34fbL);
     private static final UUID hubCharacteristicGattUUID =   new UUID(0x0000ffe100001000L, 0x800000805f9b34fbL);
-    private static UUID commonSerial =     new UUID(0x0000110100001000L, 0x800000805f9b34fbL);
 
     private static SensorAdapter sensorAdapter;
     private static HubAdapter hubAdapter;
 
     private static BluetoothManager bluetoothManager;
     private static BluetoothAdapter bluetoothAdapter;
-
     private static BluetoothService bluetooth;
 
-    /*private static final byte[] TempCommand = {(byte)'2', (byte)'\n'};
-    private static final byte[] HumidCommand = {(byte)'1', (byte)'\n'};
-
-    private static final byte[] getAlertNumber = {(byte)'1', (byte)'1', (byte)' ', (byte)'\n'};
-    private static final byte[] getPortalNumber = {(byte)'1', (byte)'3', (byte)' ', (byte)'\n'};
-    private static final byte[] getPortalFreq = {(byte)'1', (byte)'5', (byte)' ', (byte)'\n'};
-    private static final byte[] getLogFreq = {(byte)'1', (byte)'7', (byte)' ', (byte)'\n'};
-    private static final byte[] getHubTime = {(byte)'1', (byte)'9', (byte)' ', (byte)'\n'};
-    private static final byte[] getHubDate = {(byte)'2', (byte)'1', (byte)' ', (byte)'\n'};
-    private static final byte[] getCritTemp = {(byte)'2', (byte)'3', (byte)' ', (byte)'\n'};
-    private static final byte[] getCritHum = {(byte)'2', (byte)'5', (byte)' ', (byte)'\n'};
-*/
-    private final int HUB_NO_DATA_PENDING = 0;
-    private final int HUB_ALERT_PHONE_NUMBER_PENDING = 1;
-    private final int HUB_PORTAL_PHONE_NUMBER_PENDING = 2;
-    private final int HUB_PORTAL_FREQ_PENDING = 3;
-    private final int HUB_LOG_FREQ_PENDING = 4;
-    private final int HUB_TIME_PENDING = 5;
-    private final int HUB_DATE_PENDING = 6;
-    private final int HUB_CRIT_TEMP_PENDING = 7;
-    private final int HUB_CRIT_HUM_PENDING = 8;
+    private static final int HUB_NO_DATA_PENDING = 0;
+    private static final int HUB_ALERT_PHONE_NUMBER_PENDING = 1;
+    private static final int HUB_PORTAL_PHONE_NUMBER_PENDING = 2;
+    private static final int HUB_PORTAL_FREQ_PENDING = 3;
+    private static final int HUB_LOG_FREQ_PENDING = 4;
+    private static final int HUB_TIME_PENDING = 5;
+    private static final int HUB_DATE_PENDING = 6;
+    private static final int HUB_CRIT_TEMP_PENDING = 7;
+    private static final int HUB_CRIT_HUM_PENDING = 8;
     private int hubDataState;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.tab_pager);
         hubDataState = HUB_NO_DATA_PENDING;
+        setContentView(R.layout.tab_pager);
 
         context = this;
         bluetooth = null;
         sensorAdapter = new SensorAdapter(context);
         hubAdapter = new HubAdapter(context);
-
         adapter = new mPagerAdapter(this.getSupportFragmentManager(), getResources(), context);
+
         ViewPager vp = (ViewPager) findViewById(R.id.pager);
         vp.setAdapter(adapter);
 
@@ -162,6 +146,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    //Called when a nearby sensor is detected.
     public BluetoothAdapter.LeScanCallback sensorScanCallback = new BluetoothAdapter.LeScanCallback(){
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
@@ -170,6 +155,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    //callback for connecting to the service
     public class conn implements ServiceConnection{
         @Override
         public void onServiceConnected(ComponentName name, IBinder service){
@@ -194,6 +180,7 @@ public class MainActivity extends AppCompatActivity {
     // ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.
     // ACTION_DATA_AVAILABLE: received data from the device.  This can be a result of read
     //                        or notification operations.
+    //This receiver handles all of the actions from the service.
     private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
