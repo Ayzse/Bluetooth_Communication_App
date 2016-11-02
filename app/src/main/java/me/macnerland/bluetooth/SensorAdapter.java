@@ -13,6 +13,7 @@ import android.view.ViewGroup;
 import android.widget.ExpandableListAdapter;
 import android.widget.TextView;
 
+import java.io.File;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Set;
@@ -46,9 +47,14 @@ public class SensorAdapter implements ExpandableListAdapter {
     private static final UUID sensorServiceGattUUID = UUID.fromString("0000feed-0000-1000-8000-00805f9b34fb");
     private static final UUID sensorCharacteristicUUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
 
+    private static String sensor_dir;
+
     //these bytes are used to command the sensor to return values
     private static final byte[] TempCommand = {(byte)'1', (byte)'\n', (byte)'\0'};
     private static final byte[] HumidCommand = {(byte)'2', (byte)'\n', (byte)'\0'};
+
+    private static boolean can_write;
+
 
     SensorAdapter(Context c){
         context = c;
@@ -58,13 +64,39 @@ public class SensorAdapter implements ExpandableListAdapter {
         sensorIndex = new Hashtable<>();
     }
 
+    public void enableWrite(){
+        can_write = true;
+
+        //discover old data
+        File parent = new File(context.getExternalFilesDir(null).toString() + "/sensors/");
+        if(!parent.exists()) {
+            parent.mkdir();
+        }
+        File[] files = parent.listFiles();
+        for(File f : files){
+            String name = f.toString();
+            Log.w(TAG, "Found file " + name);
+            String nameless = name.substring("_");
+            String address = nameless.substring(0, nameless.charAt("_"));
+
+            //TODO deliver the data in the file to the sensor indicated in the address
+
+        }
+
+        //enable write on all current sensors with no current data in the filesystem
+        for(SensorData s : sensors){
+            s.enableWrite();
+        }
+    }
+
+
     public void addSensor(BluetoothGatt bg, Context c){
         String address = bg.getDevice().getAddress();
 
         //If this address has never been seen before, add it into the list.
         if(!sensorIndex.keySet().contains(address)) {
             //sensorIndex.put(address, false);
-            SensorData data = new SensorData(bg, c);
+            SensorData data = new SensorData(bg, c, can_write);
             data.Disconnect();
             sensors.add(data);
 
@@ -86,6 +118,7 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     //write command to fetch the temps from all connected sensors
     public void updateTemperature(){
+        //write command
             for (SensorData con : sensors) {
                 if (con.isConnected()) {
                     BluetoothGatt gatt = con.getGATT();
@@ -95,6 +128,7 @@ public class SensorAdapter implements ExpandableListAdapter {
                     gatt.writeCharacteristic(bgc);
                 }
             }
+        //read value
             for (SensorData con : sensors) {
                 if (con.isConnected()) {
                     BluetoothGatt gatt = con.getGATT();
@@ -162,10 +196,12 @@ public class SensorAdapter implements ExpandableListAdapter {
         }
     }
 
-    public void disconnectSensor(String address){
+    public boolean disconnectSensor(String address){
         if(sensorIndex.keySet().contains(address)){
             sensors.get(sensorIndex.get(address)).Disconnect();
+            return true;
         }
+        return false;
     }
 
     public void notifyDSO(){
@@ -193,7 +229,7 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     @Override
     public int getChildrenCount(int groupPosition) {
-        return (sensors.get(groupPosition)).nChildren();
+        return sensors.get(groupPosition).nChildren();//(sensors.get(groupPosition)).nChildren();
     }
 
     @Override

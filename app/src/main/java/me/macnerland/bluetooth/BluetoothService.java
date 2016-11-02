@@ -85,7 +85,6 @@ public class BluetoothService extends Service {
                 case 3://scan for hubs
                     break;
 
-
                 default:
             }
             return true;// super.onTransact(code, data, reply, flags);
@@ -129,17 +128,6 @@ public class BluetoothService extends Service {
         close();
         return super.onUnbind(intent);
     }
-
-    public BluetoothAdapter.LeScanCallback sensorScanCallback = new BluetoothAdapter.LeScanCallback(){
-        @Override
-        public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
-            bluetoothAdapter.cancelDiscovery();
-            Log.d(TAG, "Connecting to GATT server");
-
-            //BluetoothGatt sensorGatt = device.connectGatt(context, true, sensorGattCallback);
-            Log.d(TAG, "Connected to gatt");
-        }
-    };
 
     public final BluetoothGattCallback sensorGattCallback = new BluetoothGattCallback() {
         @Override

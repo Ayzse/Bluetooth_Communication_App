@@ -125,7 +125,6 @@ public class HubAdapter implements ListAdapter {
         critTemp.setText(hubCritTemp);
         critHum.setText(hubCritHum);
 
-
         return v;
     }
 
