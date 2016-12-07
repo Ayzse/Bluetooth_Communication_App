@@ -109,9 +109,9 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     public void addSensor(BluetoothGatt bg, Context c){
         String address = bg.getDevice().getAddress();
+        Log.d(TAG, "adding sensor with address" + address);
         //If this address has never been seen before, add it into the list.
         if(!sensorIndex.keySet().contains(address)) {
-            //sensorIndex.put(address, false);
             SensorData data = new SensorData(bg, c, can_write);
             sensors.add(data);
             //enter the address into the indexor
@@ -280,27 +280,10 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     @Override
     public View getGroupView(int groupPosition, boolean isExpanded, View convertView, ViewGroup parent) {
-        /*View v;
-        LayoutInflater inflater = (LayoutInflater) context
-                .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        v = inflater.inflate(R.layout.sensor_group, parent, false);*/
 
+        //let the sensor object handle it's own views
         SensorData sensor = sensors.get(groupPosition);
         return sensor.getParentView(isExpanded, convertView, parent);
-        /*
-        TextView groupTitle = (TextView)v.findViewById(R.id.sensor_group_text);
-        groupTitle.setText(sensor.getGATT().getDevice().getName());
-
-        Float t = sensor.getTemp();
-        Float rH = sensor.getHumid();
-
-        TextView temp = (TextView)v.findViewById(R.id.temperature);
-        TextView humid = (TextView)v.findViewById(R.id.humidity);
-
-        temp.setText("temperature: " + t.toString() + " C");
-        humid.setText("humidity: " + rH.toString()+ "%");
-
-        return v;*/
     }
 
     @Override

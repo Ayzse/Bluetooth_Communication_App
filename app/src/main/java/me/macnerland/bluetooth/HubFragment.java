@@ -13,6 +13,7 @@ import android.widget.TextView;
 
 /**
  * Created by Doug on 7/23/2016.
+ * This class connects the hub adapter (a ListAdapter) to the ListView
  */
 public class HubFragment extends Fragment {
 

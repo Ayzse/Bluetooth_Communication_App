@@ -221,6 +221,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
             BluetoothGatt sensorGatt = device.connectGatt(context, true, bluetooth.sensorGattCallback);
+            Log.e(TAG, "found sensor");
             sensorAdapter.addSensor(sensorGatt, context);
         }
     };

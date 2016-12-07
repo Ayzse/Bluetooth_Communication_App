@@ -49,10 +49,6 @@ public class mPagerAdapter extends FragmentPagerAdapter {
     private Vector<DataSetObserver> DSO;
 
 
-
-    UUID commonSerial =     new UUID(0x0000110100001000L, 0x800000805f9b34fbL);
-
-
     @Override
     public Fragment getItem(int position) {
         return fragments[position];
