@@ -57,6 +57,8 @@ public class MainActivity extends AppCompatActivity {
     private static final UUID sensorGattUUID =   new UUID(0x0000feed00001000L, 0x800000805f9b34fbL);
     private static UUID[] sensorUUID = {sensorGattUUID};
     private static final UUID hubCharacteristicGattUUID =   new UUID(0x0000ffe100001000L, 0x800000805f9b34fbL);
+    private static final String[] marshmallow_permissions = {android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.READ_EXTERNAL_STORAGE,
+            android.Manifest.permission.WRITE_EXTERNAL_STORAGE, android.Manifest.permission.BLUETOOTH};
 
     private static SensorAdapter sensorAdapter;
     private static HubAdapter hubAdapter;
@@ -106,34 +108,30 @@ public class MainActivity extends AppCompatActivity {
                 if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
                     Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                     this.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+                }else {
+                    ServiceConnection con = new conn();
+                    Intent btIntent = new Intent(this, BluetoothService.class);
+                    startService(btIntent);
+                    Log.i(TAG, "Binding");
+                    bindService(btIntent, con, BIND_AUTO_CREATE);
+                    registerReceiver(mGattUpdateReceiver, getGATTFilters());
                 }
-
-                ServiceConnection con = new conn();
-                Intent btIntent = new Intent(this, BluetoothService.class);
-                startService(btIntent);
-                Log.i(TAG, "Binding");
-                bindService(btIntent, con, BIND_AUTO_CREATE);
-
-                registerReceiver(mGattUpdateReceiver, getGATTFilters());
                 sensorAdapter.enableWrite();
                 break;
 
 
-            default:
             case 23:
-                ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.READ_EXTERNAL_STORAGE,
-                android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
-
+            default:
+                //ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                //android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+                ActivityCompat.requestPermissions(this, marshmallow_permissions, 1);
                 break;
         }
-        //
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            String permissions[], int[] grantResults){
-
-
         for(int i = 0; i < permissions.length; i++) {
             Log.i(TAG, "permission returned " + permissions[i] + " " + grantResults[i]);
             if(permissions[i].equals(android.Manifest.permission.ACCESS_FINE_LOCATION) && grantResults[i] == PackageManager.PERMISSION_GRANTED) {
@@ -142,18 +140,35 @@ public class MainActivity extends AppCompatActivity {
                 if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
                     Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                     this.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+                }else {
+                    ServiceConnection con = new conn();
+                    Intent btIntent = new Intent(this, BluetoothService.class);
+                    startService(btIntent);
+                    Log.i(TAG, "Binding");
+                    bindService(btIntent, con, BIND_AUTO_CREATE);
                 }
-
-                ServiceConnection con = new conn();
-                Intent btIntent = new Intent(this, BluetoothService.class);
-                startService(btIntent);
-                Log.i(TAG, "Binding");
-                bindService(btIntent, con, BIND_AUTO_CREATE);
 
                 registerReceiver(mGattUpdateReceiver, getGATTFilters());
             }
             else if(permissions[i].equals(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) && grantResults[i] == PackageManager.PERMISSION_GRANTED){
                 sensorAdapter.enableWrite();
+            }
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if(requestCode == REQUEST_ENABLE_BT){
+            if(resultCode == RESULT_OK){
+                Log.i(TAG, "Bluetooth activity successfully enabled");
+                ServiceConnection con = new conn();
+                Intent btIntent = new Intent(this, BluetoothService.class);
+                startService(btIntent);
+                Log.i(TAG, "Binding");
+                bindService(btIntent, con, BIND_AUTO_CREATE);
+            }else {
+                Log.w(TAG, "Bluetooth has not been enabled");
+                //TODO: change the UI somehow to show that the user has not enabled bluetooth
             }
         }
     }
@@ -177,20 +192,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void scanForHub(View Null){
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            ((Activity)context).startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+        switch(Build.VERSION.SDK_INT) {
+            default:
+                bluetoothAdapter.startLeScan(hubUUID, hubScanCallback);
+                break;
         }
-        bluetoothAdapter.startLeScan(hubUUID, hubScanCallback);
     }
 
+    //the view argument allows the method to be called from view resources
     public void scanForSensor(View Null){
-        //if bluetooth is disabled, launch an intent to enable it.
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            ((Activity)this).startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+        switch(Build.VERSION.SDK_INT) {
+            default:
+                bluetoothAdapter.startLeScan(sensorUUID, sensorScanCallback);
+                break;
         }
-        bluetoothAdapter.startLeScan(sensorUUID, sensorScanCallback);
     }
 
     public BluetoothAdapter.LeScanCallback hubScanCallback = new BluetoothAdapter.LeScanCallback(){
@@ -248,7 +263,6 @@ public class MainActivity extends AppCompatActivity {
             } else if (BluetoothService.SENSOR_ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 sensorAdapter.connectSensor(address);
                 sensorAdapter.updateNotification(address);
-
             } else if (BluetoothService.SENSOR_ACTION_DATA_AVAILABLE.equals(action)) {
                 String data = intent.getStringExtra(BluetoothService.EXTRA_DATA);
                 if("Invalid Command\n".equals(data)){

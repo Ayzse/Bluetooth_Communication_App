@@ -25,7 +25,7 @@ import java.util.Vector;
  * Created by Doug on 7/31/2016.
  */
 public class SensorAdapter implements ExpandableListAdapter {
-    private static final String TAG = "Sensor";
+    private static final String TAG = "SensorAdapter";
 
     private Vector<DataSetObserver> DSO;
 
@@ -64,6 +64,8 @@ public class SensorAdapter implements ExpandableListAdapter {
         sensorIndex = new Hashtable<>();
     }
 
+    //this should only be called once in this activity's lifecycle,
+    //calling it extra times will add duplicate data to the sensors, appearance, but not the CSVs
     public void enableWrite(){
         can_write = true;
 
@@ -72,15 +74,30 @@ public class SensorAdapter implements ExpandableListAdapter {
         if(!parent.exists()) {
             parent.mkdir();
         }
+
         File[] files = parent.listFiles();
         for(File f : files){
             String name = f.toString();
-            Log.w(TAG, "Found file " + name);
-            String nameless = name.substring("_");
-            String address = nameless.substring(0, nameless.charAt("_"));
+            Log.i(TAG, "Found file " + name);
+            int name_start = name.indexOf("/sensors/") + "/sensors/".length();
+            int name_end = name.indexOf("_", name_start);
+            String nameless = name.substring(name_start, name_end);
+            int address_start = name_end + 1;
+            int address_end = name.indexOf("_", address_start);
+            String address = name.substring(address_start, address_end);
 
-            //TODO deliver the data in the file to the sensor indicated in the address
+            Log.i(TAG, "File name: " + nameless + " Found address: " + address);
 
+            if(sensorIndex.containsKey(address)){
+                Log.i(TAG, "There is old sensor data");
+                SensorData data = sensors.get(sensorIndex.get(address));
+                data.enableWrite();
+            }else{
+                Log.i(TAG, "making a new sensor");
+                SensorData data = new SensorData(address, nameless, context, true);
+                sensors.add(data);
+                sensorIndex.put(address, sensors.size() - 1);
+            }
         }
 
         //enable write on all current sensors with no current data in the filesystem
@@ -92,27 +109,29 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     public void addSensor(BluetoothGatt bg, Context c){
         String address = bg.getDevice().getAddress();
-
         //If this address has never been seen before, add it into the list.
         if(!sensorIndex.keySet().contains(address)) {
             //sensorIndex.put(address, false);
             SensorData data = new SensorData(bg, c, can_write);
-            data.Disconnect();
             sensors.add(data);
-
             //enter the address into the indexor
             sensorIndex.put(address, sensors.size() - 1);
+        }else{
+            Log.e(TAG, "Trying to add in sensor that already has data");
+            sensors.get(sensorIndex.get(address)).connectGatt(bg);
         }
         notifyDSO();
     }
 
     public void updateNotification(String address){
         BluetoothGatt bg = sensors.get(sensorIndex.get(address)).getGATT();
-        BluetoothGattService bgs = bg.getService(sensorServiceGattUUID);
-        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(sensorCharacteristicUUID);
-        int properties = bgc.getProperties();
-        if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
-            bg.setCharacteristicNotification(bgc, true);
+        if(bg != null) {
+            BluetoothGattService bgs = bg.getService(sensorServiceGattUUID);
+            BluetoothGattCharacteristic bgc = bgs.getCharacteristic(sensorCharacteristicUUID);
+            int properties = bgc.getProperties();
+            if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
+                bg.setCharacteristicNotification(bgc, true);
+            }
         }
     }
 
@@ -143,6 +162,8 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     public void updateHumidity(){
             for (SensorData con : sensors) {
+                Log.i(TAG, "Retrieving humidity for " + con.toString());
+                Log.i(TAG, "Retrieving humidity for " + con.isConnected());
                 if (con.isConnected()) {
                     BluetoothGatt gatt = con.getGATT();
                     BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
