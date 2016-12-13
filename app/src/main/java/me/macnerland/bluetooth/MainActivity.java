@@ -56,8 +56,10 @@ public class MainActivity extends AppCompatActivity {
     private static UUID[] hubUUID = {hubServiceGattUUID};
     private static final UUID sensorGattUUID =   new UUID(0x0000feed00001000L, 0x800000805f9b34fbL);
     private static UUID[] sensorUUID = {sensorGattUUID};
+    private static final UUID defaultServiceGattUUID =   new UUID(0x0000180100001000L, 0x800000805f9b34fbL);
+    private static UUID[] defaultUUID = {defaultServiceGattUUID};
     private static final UUID hubCharacteristicGattUUID =   new UUID(0x0000ffe100001000L, 0x800000805f9b34fbL);
-    private static final String[] marshmallow_permissions = {android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.READ_EXTERNAL_STORAGE,
+    private static final String[] marshmallow_permissions = {BluetoothService.PERMISSION, android.Manifest.permission.ACCESS_FINE_LOCATION,android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.READ_EXTERNAL_STORAGE,
             android.Manifest.permission.WRITE_EXTERNAL_STORAGE, android.Manifest.permission.BLUETOOTH};
 
     private static SensorAdapter sensorAdapter;
@@ -122,8 +124,6 @@ public class MainActivity extends AppCompatActivity {
 
             case 23:
             default:
-                //ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.READ_EXTERNAL_STORAGE,
-                //android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
                 ActivityCompat.requestPermissions(this, marshmallow_permissions, 1);
                 break;
         }
@@ -138,6 +138,7 @@ public class MainActivity extends AppCompatActivity {
                 bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
                 bluetoothAdapter = bluetoothManager.getAdapter();
                 if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
+                    Log.e(TAG, "Intent for marshmallow bluetooth");
                     Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                     this.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
                 }else {
@@ -146,9 +147,9 @@ public class MainActivity extends AppCompatActivity {
                     startService(btIntent);
                     Log.i(TAG, "Binding");
                     bindService(btIntent, con, BIND_AUTO_CREATE);
+                    registerReceiver(mGattUpdateReceiver, getGATTFilters());
                 }
 
-                registerReceiver(mGattUpdateReceiver, getGATTFilters());
             }
             else if(permissions[i].equals(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) && grantResults[i] == PackageManager.PERMISSION_GRANTED){
                 sensorAdapter.enableWrite();
@@ -166,6 +167,7 @@ public class MainActivity extends AppCompatActivity {
                 startService(btIntent);
                 Log.i(TAG, "Binding");
                 bindService(btIntent, con, BIND_AUTO_CREATE);
+                registerReceiver(mGattUpdateReceiver, getGATTFilters());
             }else {
                 Log.w(TAG, "Bluetooth has not been enabled");
                 //TODO: change the UI somehow to show that the user has not enabled bluetooth
@@ -203,6 +205,7 @@ public class MainActivity extends AppCompatActivity {
     public void scanForSensor(View Null){
         switch(Build.VERSION.SDK_INT) {
             default:
+                //bluetoothAdapter.startLeScan(defaultUUID, sensorScanCallback);
                 bluetoothAdapter.startLeScan(sensorUUID, sensorScanCallback);
                 break;
         }
@@ -221,7 +224,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
             BluetoothGatt sensorGatt = device.connectGatt(context, true, bluetooth.sensorGattCallback);
-            Log.e(TAG, "found sensor");
+            Log.e(TAG, "found Real sensor");
             sensorAdapter.addSensor(sensorGatt, context);
         }
     };
@@ -236,7 +239,7 @@ public class MainActivity extends AppCompatActivity {
                 scanForHub(null);
                 scanForSensor(null);
             }
-
+            bluetooth.registerBluetoothCallback(blueCallback);
         }
 
         @Override
@@ -244,6 +247,82 @@ public class MainActivity extends AppCompatActivity {
             bluetooth = null;
         }
     }
+
+    private IRemoteServiceCallback blueCallback = new IRemoteServiceCallback(){
+        @Override
+        public void valueChanged(String action, String address, String returnData) {
+            Log.i(TAG, "IPC works again!!!" + returnData + address);
+            if (BluetoothService.SENSOR_ACTION_GATT_CONNECTED.equals(action)) {
+                Log.i(TAG, "connection is available");
+                //connection means nothing
+            } else if (BluetoothService.SENSOR_ACTION_GATT_DISCONNECTED.equals(action)) {
+                sensorAdapter.disconnectSensor(address);
+            } else if (BluetoothService.SENSOR_ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
+                Log.d(TAG, "gatt services discovered");
+                sensorAdapter.connectSensor(address);
+                sensorAdapter.updateNotification(address);
+            } else if (BluetoothService.SENSOR_ACTION_DATA_AVAILABLE.equals(action)) {
+                String data = returnData;
+                if("Invalid Command\n".equals(data)){
+                    Log.w(TAG, "Invalid Command");
+                }else {
+                    sensorAdapter.deliverData(address, data);
+                    sensorAdapter.notifyDSO();
+                }
+            } else if (BluetoothService.HUB_ACTION_GATT_SERVICES_DISCOVERED.equals(action)){
+                BluetoothGatt bg = hubAdapter.getHub(address).getGATT();
+                BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
+                BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
+                int properties = bgc.getProperties();
+                if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
+                    bg.setCharacteristicNotification(bgc, true);
+                }
+                hubAdapter.getHub(address).fetchAlertNumber();
+                hubDataState++;
+            } else if (BluetoothService.HUB_ACTION_DATA_AVAILABLE.equals(action)){
+                String value = returnData;
+                HubData hub = hubAdapter.getHub(address);
+                Log.i(TAG, "Value: " + value);
+                switch(hubDataState){
+                    case HUB_ALERT_PHONE_NUMBER_PENDING:
+                        hub.setAlertNumber(value);
+                        hub.fetchPortalNumber();
+                        break;
+                    case HUB_PORTAL_PHONE_NUMBER_PENDING:
+                        hub.setPortalNumber(value);
+                        hub.fetchPortalFreq();
+                        break;
+                    case HUB_PORTAL_FREQ_PENDING:
+                        hub.setPortalFreq(value);
+                        hub.fetchLogFreq();
+                        break;
+                    case HUB_LOG_FREQ_PENDING:
+                        hub.setLogFrequency(value);
+                        hub.fetchTime();
+                        break;
+                    case HUB_TIME_PENDING:
+                        hub.setTime(value);
+                        hub.fetchDate();
+                        break;
+                    case HUB_DATE_PENDING:
+                        hub.setDate(value);
+                        hub.fetchCritTemp();
+                        break;
+                    case HUB_CRIT_TEMP_PENDING:
+                        hub.setCriticalTemperature(value);
+                        hub.fetchCritHumid();
+                        break;
+                    case HUB_CRIT_HUM_PENDING:
+                        hub.setCriticalHumidity(value);
+                        Log.w(TAG, "Refreshing UI");
+                        hubAdapter.notifyDSO();
+                        break;
+                }
+                hubDataState++;
+            }
+        }
+
+    };
 
     // Handles various events fired by the Service.
     // ACTION_GATT_CONNECTED: connected to a GATT server.
@@ -258,10 +337,12 @@ public class MainActivity extends AppCompatActivity {
             final String action = intent.getAction();
             final String address = intent.getStringExtra(BluetoothService.ADDRESS_DATA);
             if (BluetoothService.SENSOR_ACTION_GATT_CONNECTED.equals(action)) {
+                Log.i(TAG, "connection is available");
                 //connection means nothing
             } else if (BluetoothService.SENSOR_ACTION_GATT_DISCONNECTED.equals(action)) {
                 sensorAdapter.disconnectSensor(address);
             } else if (BluetoothService.SENSOR_ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
+                Log.d(TAG, "gatt services discovered");
                 sensorAdapter.connectSensor(address);
                 sensorAdapter.updateNotification(address);
             } else if (BluetoothService.SENSOR_ACTION_DATA_AVAILABLE.equals(action)) {

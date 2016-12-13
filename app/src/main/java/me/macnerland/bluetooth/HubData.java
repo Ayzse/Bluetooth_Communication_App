@@ -24,6 +24,11 @@ public class HubData {
 
     private boolean isConnected;
 
+    private static final byte[] removeASensor = {(byte)'9', (byte)' ', (byte)'\n'};
+    private static final byte[] terminator = {(byte)'\n'};
+
+
+    private static final byte[] removeAllSensors = {(byte)'1', (byte)'0', (byte)' ', (byte)'\n'};
     private static final byte[] getAlertNumber = {(byte)'1', (byte)'1', (byte)' ', (byte)'\n'};
     private static final byte[] getPortalNumber = {(byte)'1', (byte)'3', (byte)' ', (byte)'\n'};
     private static final byte[] getPortalFreq = {(byte)'1', (byte)'5', (byte)' ', (byte)'\n'};
@@ -184,6 +189,21 @@ public class HubData {
         BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
         BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
         bgc.setValue(getCritHum);
+        gatt.writeCharacteristic(bgc);
+    }
+
+    public void removeSensor(String name){
+        BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
+        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
+        bgc.setValue(removeASensor);
+        gatt.writeCharacteristic(bgc);
+
+    }
+
+    public void removeAllSensors(){
+        BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
+        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
+        bgc.setValue(removeAllSensors);
         gatt.writeCharacteristic(bgc);
     }
     

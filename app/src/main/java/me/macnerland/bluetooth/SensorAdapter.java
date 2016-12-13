@@ -110,6 +110,9 @@ public class SensorAdapter implements ExpandableListAdapter {
     public void addSensor(BluetoothGatt bg, Context c){
         String address = bg.getDevice().getAddress();
         Log.d(TAG, "adding sensor with address" + address);
+        for(BluetoothGattService bgs : bg.getServices()){
+            Log.d(TAG, "with service: " + bgs.getUuid().toString());
+        }
         //If this address has never been seen before, add it into the list.
         if(!sensorIndex.keySet().contains(address)) {
             SensorData data = new SensorData(bg, c, can_write);

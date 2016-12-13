@@ -45,6 +45,10 @@ public class BluetoothService extends Service {
     private static final int STATE_CONNECTING = 1;
     private static final int STATE_CONNECTED = 2;
 
+    IRemoteServiceCallback mCallback;
+
+    public final static String PERMISSION =
+            "edu.uiuc.bluetooth.SERVICE_PERMISSION";
     public final static String SENSOR_ACTION_GATT_CONNECTED =
             "edu.uiuc.bluetooth.SENSOR_ACTION_GATT_CONNECTED";
     public final static String SENSOR_ACTION_GATT_DISCONNECTED =
@@ -102,6 +106,7 @@ public class BluetoothService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        Log.e(TAG, "creating new service");
         bluetoothManager = (BluetoothManager)this.getSystemService(Service.BLUETOOTH_SERVICE);
         bluetoothAdapter = bluetoothManager.getAdapter();
         return;
@@ -129,13 +134,20 @@ public class BluetoothService extends Service {
         return super.onUnbind(intent);
     }
 
+    public void registerBluetoothCallback(IRemoteServiceCallback callback){
+        mCallback = callback;
+    }
+
+
     public final BluetoothGattCallback sensorGattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             String intentAction;
+            Log.i(TAG, "Connection");
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 intentAction = SENSOR_ACTION_GATT_CONNECTED;
                 intentAction = intentAction + " " + gatt.getDevice().getAddress();
+                broadcastUpdate(intentAction, gatt.getDevice().getAddress());
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 intentAction = SENSOR_ACTION_GATT_DISCONNECTED;
                 mConnectionState = STATE_DISCONNECTED;
@@ -145,6 +157,7 @@ public class BluetoothService extends Service {
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            Log.i(TAG, "gatt services");
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 broadcastUpdate(SENSOR_ACTION_GATT_SERVICES_DISCOVERED, gatt.getDevice().getAddress());
             }
@@ -209,6 +222,10 @@ public class BluetoothService extends Service {
     };
 
     private void broadcastUpdate(final String action, final String address) {
+        Log.i(TAG, "broadcasting update");
+        if(mCallback != null){
+            mCallback.valueChanged(action, address, "");
+        }
         final Intent intent = new Intent(action);
         intent.putExtra(ADDRESS_DATA, address);
         sendBroadcast(intent);
@@ -217,6 +234,7 @@ public class BluetoothService extends Service {
     private void broadcastUpdate(final String action,
                                  final String address,
                                  final BluetoothGattCharacteristic characteristic) {
+        Log.i(TAG, "broadcasting write");
         final Intent intent = new Intent(action);
 
         // This is special handling for the Heart Rate Measurement profile.  Data parsing is
@@ -224,14 +242,22 @@ public class BluetoothService extends Service {
         // http://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml
 
         // For all other profiles, writes the data formatted in HEX.
+        String returnData = "No return Data";
         byte[] data = characteristic.getValue();
         if (data != null && data.length > 0) {
             final StringBuilder stringBuilder = new StringBuilder(data.length);
             for(byte byteChar : data)
                 stringBuilder.append(String.format("%02X ", byteChar));
-            intent.putExtra(EXTRA_DATA, new String(data));// + "\n" + stringBuilder.toString());
+            returnData = new String(data);
+            intent.putExtra(EXTRA_DATA, returnData);// + "\n" + stringBuilder.toString());
         }
         intent.putExtra(ADDRESS_DATA, address);
+
+        if(mCallback != null){
+            mCallback.valueChanged(action, address, returnData);
+        }
+
         sendBroadcast(intent);
+
     }
 }
