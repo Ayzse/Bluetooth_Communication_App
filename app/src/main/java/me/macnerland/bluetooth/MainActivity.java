@@ -52,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private static mPagerAdapter adapter;
     private static Context context;
 
-    private static UUID hubServiceGattUUID =      new UUID(0x0000ffe000001000L, 0x800000805f9b34fbL);
+    private static UUID hubServiceGattUUID =      new UUID(0x0000ece000001000L, 0x800000805f9b34fbL);
     private static UUID[] hubUUID = {hubServiceGattUUID};
     private static final UUID sensorGattUUID =   new UUID(0x0000feed00001000L, 0x800000805f9b34fbL);
     private static UUID[] sensorUUID = {sensorGattUUID};
@@ -91,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
         bluetooth = null;
         sensorAdapter = new SensorAdapter(context);
         hubAdapter = new HubAdapter(context);
-        adapter = new mPagerAdapter(this.getSupportFragmentManager(), getResources(), context);
+        adapter = new mPagerAdapter(this.getSupportFragmentManager(), getResources());
 
         ViewPager vp = (ViewPager) findViewById(R.id.pager);
         vp.setAdapter(adapter);
@@ -205,12 +205,12 @@ public class MainActivity extends AppCompatActivity {
     public void scanForSensor(View Null){
         switch(Build.VERSION.SDK_INT) {
             default:
-                //bluetoothAdapter.startLeScan(defaultUUID, sensorScanCallback);
                 bluetoothAdapter.startLeScan(sensorUUID, sensorScanCallback);
                 break;
         }
     }
 
+    //Called when a hub is detected
     public BluetoothAdapter.LeScanCallback hubScanCallback = new BluetoothAdapter.LeScanCallback(){
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
@@ -224,7 +224,6 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
             BluetoothGatt sensorGatt = device.connectGatt(context, true, bluetooth.sensorGattCallback);
-            Log.e(TAG, "found Real sensor");
             sensorAdapter.addSensor(sensorGatt, context);
         }
     };
@@ -235,11 +234,12 @@ public class MainActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName name, IBinder service){
             boolean firstConnect = bluetooth == null;
             bluetooth = ((BluetoothService.LocalBinder) service).getService();
+            bluetooth.registerBluetoothCallback(blueCallback);
             if(firstConnect){
                 scanForHub(null);
                 scanForSensor(null);
             }
-            bluetooth.registerBluetoothCallback(blueCallback);
+
         }
 
         @Override
@@ -251,15 +251,13 @@ public class MainActivity extends AppCompatActivity {
     private IRemoteServiceCallback blueCallback = new IRemoteServiceCallback(){
         @Override
         public void valueChanged(String action, String address, String returnData) {
-            Log.i(TAG, "IPC works again!!!" + returnData + address);
+            Log.i(TAG, "IPC works again!!!" + action + " " + address);
             if (BluetoothService.SENSOR_ACTION_GATT_CONNECTED.equals(action)) {
-                Log.i(TAG, "connection is available");
-                //connection means nothing
+                sensorAdapter.connectSensor(address);
             } else if (BluetoothService.SENSOR_ACTION_GATT_DISCONNECTED.equals(action)) {
                 sensorAdapter.disconnectSensor(address);
             } else if (BluetoothService.SENSOR_ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 Log.d(TAG, "gatt services discovered");
-                sensorAdapter.connectSensor(address);
                 sensorAdapter.updateNotification(address);
             } else if (BluetoothService.SENSOR_ACTION_DATA_AVAILABLE.equals(action)) {
                 String data = returnData;
@@ -337,12 +335,10 @@ public class MainActivity extends AppCompatActivity {
             final String action = intent.getAction();
             final String address = intent.getStringExtra(BluetoothService.ADDRESS_DATA);
             if (BluetoothService.SENSOR_ACTION_GATT_CONNECTED.equals(action)) {
-                Log.i(TAG, "connection is available");
-                //connection means nothing
+
             } else if (BluetoothService.SENSOR_ACTION_GATT_DISCONNECTED.equals(action)) {
                 sensorAdapter.disconnectSensor(address);
             } else if (BluetoothService.SENSOR_ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
-                Log.d(TAG, "gatt services discovered");
                 sensorAdapter.connectSensor(address);
                 sensorAdapter.updateNotification(address);
             } else if (BluetoothService.SENSOR_ACTION_DATA_AVAILABLE.equals(action)) {
@@ -418,5 +414,19 @@ public class MainActivity extends AppCompatActivity {
         intentFilter.addAction(BluetoothService.HUB_ACTION_GATT_SERVICES_DISCOVERED);
         intentFilter.addAction(BluetoothService.HUB_ACTION_DATA_AVAILABLE);
         return intentFilter;
+    }
+
+
+    //android activity lifecycle ovverrides
+    @Override
+    public void onPause(){
+        super.onPause();
+        sensorAdapter.onPause();
+    }
+
+    @Override
+    public void onResume(){
+        super.onResume();
+        sensorAdapter.onResume();
     }
 }

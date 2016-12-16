@@ -143,10 +143,9 @@ public class BluetoothService extends Service {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             String intentAction;
-            Log.i(TAG, "Connection");
             if (newState == BluetoothProfile.STATE_CONNECTED) {
+                gatt.discoverServices();
                 intentAction = SENSOR_ACTION_GATT_CONNECTED;
-                intentAction = intentAction + " " + gatt.getDevice().getAddress();
                 broadcastUpdate(intentAction, gatt.getDevice().getAddress());
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 intentAction = SENSOR_ACTION_GATT_DISCONNECTED;
@@ -157,7 +156,6 @@ public class BluetoothService extends Service {
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            Log.i(TAG, "gatt services");
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 broadcastUpdate(SENSOR_ACTION_GATT_SERVICES_DISCOVERED, gatt.getDevice().getAddress());
             }
@@ -166,7 +164,6 @@ public class BluetoothService extends Service {
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             super.onCharacteristicWrite(gatt, characteristic, status);
-            Log.e(TAG, "Writing characteristic status: " + status + " " + new String(characteristic.getValue()));
         }
 
         @Override
@@ -222,9 +219,8 @@ public class BluetoothService extends Service {
     };
 
     private void broadcastUpdate(final String action, final String address) {
-        Log.i(TAG, "broadcasting update");
         if(mCallback != null){
-            mCallback.valueChanged(action, address, "");
+            //mCallback.valueChanged(action, address, "");
         }
         final Intent intent = new Intent(action);
         intent.putExtra(ADDRESS_DATA, address);
@@ -234,7 +230,6 @@ public class BluetoothService extends Service {
     private void broadcastUpdate(final String action,
                                  final String address,
                                  final BluetoothGattCharacteristic characteristic) {
-        Log.i(TAG, "broadcasting write");
         final Intent intent = new Intent(action);
 
         // This is special handling for the Heart Rate Measurement profile.  Data parsing is
@@ -254,7 +249,7 @@ public class BluetoothService extends Service {
         intent.putExtra(ADDRESS_DATA, address);
 
         if(mCallback != null){
-            mCallback.valueChanged(action, address, returnData);
+            //mCallback.valueChanged(action, address, returnData);
         }
 
         sendBroadcast(intent);

@@ -1,35 +1,29 @@
 package me.macnerland.bluetooth;
 
-import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.content.Context;
 import android.database.DataSetObserver;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ExpandableListAdapter;
-import android.widget.TextView;
 
 import java.io.File;
 import java.util.Hashtable;
-import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import java.util.Vector;
 
 /**
- * controls and stores data for the sensors
+ * Stores SensorData instances in a vector. Is also responsible for delivering data to the
+ * SensorData objects and restoring from csv files
  * Created by Doug on 7/31/2016.
  */
-public class SensorAdapter implements ExpandableListAdapter {
+class SensorAdapter implements ExpandableListAdapter {
     private static final String TAG = "SensorAdapter";
 
-    private Vector<DataSetObserver> DSO;
-
-    //private Hashtable<String, Boolean> sensorConnect;
+    private final Vector<DataSetObserver> DSO;
 
     /*
     * The data structure requirements are as follows:
@@ -38,16 +32,13 @@ public class SensorAdapter implements ExpandableListAdapter {
     *
     *   2. The data structure must retain an order, so that it an be iterated through
     * */
-    private Hashtable<String, Integer> sensorIndex;
-    private Vector<SensorData> sensors;
-    private Vector<String> connectedAddresses;
-    private Context context;
+    private final Hashtable<String, Integer> sensorIndex;
+    private final Vector<SensorData> sensors;
+    private final Context context;
 
 
     private static final UUID sensorServiceGattUUID = UUID.fromString("0000feed-0000-1000-8000-00805f9b34fb");
     private static final UUID sensorCharacteristicUUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
-
-    private static String sensor_dir;
 
     //these bytes are used to command the sensor to return values
     private static final byte[] TempCommand = {(byte)'1', (byte)'\n', (byte)'\0'};
@@ -60,19 +51,26 @@ public class SensorAdapter implements ExpandableListAdapter {
         context = c;
         sensors = new Vector<>();
         DSO = new Vector<>();
-        connectedAddresses = new Vector<>();
         sensorIndex = new Hashtable<>();
     }
 
     //this should only be called once in this activity's lifecycle,
     //calling it extra times will add duplicate data to the sensors, appearance, but not the CSVs
-    public void enableWrite(){
+    void enableWrite(){
         can_write = true;
 
-        //discover old data
-        File parent = new File(context.getExternalFilesDir(null).toString() + "/sensors/");
+        //discover old data in the app directory
+        File sensorDir = context.getExternalFilesDir(null);
+        if(sensorDir == null){
+            Log.e(TAG, "failed to retrieve external directory path");
+            return;
+        }
+        File parent = new File(sensorDir.toString() + "/sensors/");
         if(!parent.exists()) {
-            parent.mkdir();
+            boolean made_dir = parent.mkdir();
+            if(!made_dir){
+                Log.e(TAG, "Failed to make directory");
+            }
         }
 
         File[] files = parent.listFiles();
@@ -106,8 +104,7 @@ public class SensorAdapter implements ExpandableListAdapter {
         }
     }
 
-
-    public void addSensor(BluetoothGatt bg, Context c){
+    void addSensor(BluetoothGatt bg, Context c){
         String address = bg.getDevice().getAddress();
         Log.d(TAG, "adding sensor with address" + address);
         for(BluetoothGattService bgs : bg.getServices()){
@@ -117,7 +114,7 @@ public class SensorAdapter implements ExpandableListAdapter {
         if(!sensorIndex.keySet().contains(address)) {
             SensorData data = new SensorData(bg, c, can_write);
             sensors.add(data);
-            //enter the address into the indexor
+            //enter the address to get the index into the vector
             sensorIndex.put(address, sensors.size() - 1);
         }else{
             Log.e(TAG, "Trying to add in sensor that already has data");
@@ -126,20 +123,24 @@ public class SensorAdapter implements ExpandableListAdapter {
         notifyDSO();
     }
 
-    public void updateNotification(String address){
+    void updateNotification(String address){
         BluetoothGatt bg = sensors.get(sensorIndex.get(address)).getGATT();
         if(bg != null) {
             BluetoothGattService bgs = bg.getService(sensorServiceGattUUID);
-            BluetoothGattCharacteristic bgc = bgs.getCharacteristic(sensorCharacteristicUUID);
-            int properties = bgc.getProperties();
-            if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
-                bg.setCharacteristicNotification(bgc, true);
+            if(bgs != null) {
+                BluetoothGattCharacteristic bgc = bgs.getCharacteristic(sensorCharacteristicUUID);
+                if (bgc != null){
+                    int properties = bgc.getProperties();
+                    if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
+                        bg.setCharacteristicNotification(bgc, true);
+                    }
+                }
             }
         }
     }
 
     //write command to fetch the temps from all connected sensors
-    public void updateTemperature(){
+    void updateTemperature(){
         //write command
             for (SensorData con : sensors) {
                 if (con.isConnected()) {
@@ -163,10 +164,8 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     }
 
-    public void updateHumidity(){
+    void updateHumidity(){
             for (SensorData con : sensors) {
-                Log.i(TAG, "Retrieving humidity for " + con.toString());
-                Log.i(TAG, "Retrieving humidity for " + con.isConnected());
                 if (con.isConnected()) {
                     BluetoothGatt gatt = con.getGATT();
                     BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
@@ -181,7 +180,7 @@ public class SensorAdapter implements ExpandableListAdapter {
                     } else {
                         bgc.setValue(HumidCommand);
                         gatt.writeCharacteristic(bgc);
-                        con.dataState = con.HUMIDITY_DATA_PENDING;
+                        con.dataState = SensorData.HUMIDITY_DATA_PENDING;
                     }
                 }
             }
@@ -198,14 +197,15 @@ public class SensorAdapter implements ExpandableListAdapter {
             }
     }
 
-    public void deliverData(String address, String value){
+    void deliverData(String address, String value){
         SensorData sensor = sensors.get(sensorIndex.get(address));
+        float valueAsFloat = Float.parseFloat(value);
         switch(sensor.dataState){
             case SensorData.TEMPERATURE_DATA_PENDING:
-                sensor.updateTemp(value);
+                sensor.updateTemp(valueAsFloat);
                 break;
             case SensorData.HUMIDITY_DATA_PENDING:
-                sensor.updateHumid(value);
+                sensor.updateHumid(valueAsFloat);
                 break;
             default:
                 Log.e(TAG, "Bad data state");
@@ -214,21 +214,27 @@ public class SensorAdapter implements ExpandableListAdapter {
         sensor.dataState = SensorData.NO_DATA_PENDING;
     }
 
-    public void connectSensor(String address){
+    void connectSensor(String address){
         if(sensorIndex.keySet().contains(address)){
             sensors.get(sensorIndex.get(address)).Connect();
+            notifyDSO();
+        }else{
+            Log.e(TAG, "Serious error: tried to connect non-existent sensor");
         }
     }
 
-    public boolean disconnectSensor(String address){
+    boolean disconnectSensor(String address){
         if(sensorIndex.keySet().contains(address)){
             sensors.get(sensorIndex.get(address)).Disconnect();
+            notifyDSO();
             return true;
+        }else{
+            Log.e(TAG, "Serious error: tried to disconnect a non-existent sensor");
+            return false;
         }
-        return false;
     }
 
-    public void notifyDSO(){
+    void notifyDSO(){
         for(DataSetObserver dso: DSO){
             dso.onChanged();
         }
@@ -253,7 +259,7 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     @Override
     public int getChildrenCount(int groupPosition) {
-        return sensors.get(groupPosition).nChildren();//(sensors.get(groupPosition)).nChildren();
+        return sensors.get(groupPosition).nChildren();
     }
 
     @Override
@@ -311,12 +317,12 @@ public class SensorAdapter implements ExpandableListAdapter {
 
     @Override
     public void onGroupExpanded(int groupPosition) {
-        sensors.get(groupPosition).expand();
+        //sensors.get(groupPosition).expand();
     }
 
     @Override
     public void onGroupCollapsed(int groupPosition) {
-        sensors.get(groupPosition).collapse();
+        //sensors.get(groupPosition).collapse();
     }
 
     @Override
@@ -328,4 +334,18 @@ public class SensorAdapter implements ExpandableListAdapter {
     public long getCombinedGroupId(long groupId) {
         return 0;
     }
+
+    //Android Life cycles
+    void onPause(){
+        for(SensorData sd : sensors){
+            sd.onPause();
+        }
+    }
+
+    void onResume(){
+        for(SensorData sd : sensors){
+            sd.onResume();
+        }
+    }
+
 }

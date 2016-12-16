@@ -15,35 +15,9 @@
         android:text=""
         android:id="@+id/text"/>
 
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/text"
-        android:id="@+id/SaveBtn"
-        android:text="@string/save"
-        android:onClick="scanForSensor"/>
-
-    <EditText
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/text"
-        android:layout_toRightOf="@+id/SaveBtn"
-        android:ems="10"
-        android:text="@string/command"
-        android:id="@+id/Command"
-        android:inputType="text"/>
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/text"
-        android:layout_toRightOf="@+id/Command"
-        android:id="@+id/SendBtn"
-        android:text="@string/send"/>
-
+    <!--android:layout_below="@+id/SendBtn"-->
     <ListView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/SendBtn"
         android:id="@+id/hubList"></ListView>
 </RelativeLayout>

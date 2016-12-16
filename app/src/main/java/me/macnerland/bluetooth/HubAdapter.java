@@ -16,33 +16,34 @@ import java.util.Vector;
 
 /**
  * Created by Doug on 8/15/2016.
+ * This contains a loist of all the connected hubs
  */
-public class HubAdapter implements ListAdapter {
+class HubAdapter implements ListAdapter {
 
     private Hashtable<String, Integer> hubIndex;
     private Vector<HubData> hubs;
     private Vector<DataSetObserver> DSO;
     private Context context;
 
-    public HubAdapter(Context c){
+    HubAdapter(Context c){
         hubIndex = new Hashtable<>();
         hubs = new Vector<>();
         DSO = new Vector<>();
         context = c;
     }
 
-    public void notifyDSO(){
+    void notifyDSO(){
         for(DataSetObserver dso : DSO){
             dso.onChanged();
         }
     }
 
-    public void addHub(BluetoothGatt bg){
+    void addHub(BluetoothGatt bg){
         hubs.add(new HubData(bg));
         hubIndex.put(bg.getDevice().getAddress(), hubs.size() - 1);
     }
 
-    public HubData getHub(String MAC){
+    HubData getHub(String MAC){
         if(hubIndex.keySet().contains(MAC)){
             return hubs.get(hubIndex.get(MAC));
         }
@@ -92,9 +93,14 @@ public class HubAdapter implements ListAdapter {
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         View v;
-        LayoutInflater inflater = (LayoutInflater) context
-                .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        v = inflater.inflate(R.layout.hub_item, parent, false);
+
+        if(convertView != null){
+            v = convertView;
+        }else {
+            LayoutInflater inflater = (LayoutInflater) context
+                    .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            v = inflater.inflate(R.layout.hub_item, parent, false);
+        }
 
         HubData hub = hubs.get(position);
 

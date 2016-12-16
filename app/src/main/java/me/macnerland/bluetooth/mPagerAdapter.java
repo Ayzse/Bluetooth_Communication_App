@@ -1,51 +1,24 @@
 package me.macnerland.bluetooth;
 
-import android.app.Activity;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
-import android.bluetooth.BluetoothSocket;
-import android.bluetooth.le.BluetoothLeScanner;
-import android.content.Context;
-import android.content.Intent;
 import android.content.res.Resources;
 import android.database.DataSetObserver;
-import android.os.Bundle;
-import android.os.ParcelUuid;
-import android.provider.ContactsContract;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
-import android.support.v4.app.ListFragment;
 import android.util.Log;
-import android.widget.ExpandableListView;
-import android.widget.SimpleAdapter;
 
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.UUID;
 import java.util.Vector;
 
 /**
  * Pages populates the top level viewpager
  * Created by Doug on 7/21/2016.
  */
-public class mPagerAdapter extends FragmentPagerAdapter {
+class mPagerAdapter extends FragmentPagerAdapter {
 
     private static final String TAG = "PagerAdapter";
-    private Resources res;
     private Fragment[] fragments;
     private String[] titles;
-    private HubFragment hubFragment;
-    private SensorFragment sensorFragment;
-    private final static int REQUEST_ENABLE_BT = 1;
 
-    private Context context;
-    private Activity activity;
-
-    private SensorAdapter sensorAdapter;
-
-    private byte[] getHubID = {0x02, 0x20, 0x0a};
     private Vector<DataSetObserver> DSO;
 
 
@@ -59,26 +32,20 @@ public class mPagerAdapter extends FragmentPagerAdapter {
         return 2;
     }
 
-    mPagerAdapter(FragmentManager fm, Resources r, Context c){
+    mPagerAdapter(FragmentManager fm, Resources r){
         super(fm);
         DSO = new Vector<>();
-        context = c;
-        sensorAdapter = new SensorAdapter(context);
-        res = r;
-        activity = (Activity) context;
-
-
-        //BluetoothLeScanner BLEscanner = bluetoothAdapter.getBluetoothLeScanner();
-        Bundle args = new Bundle();
 
         fragments = new Fragment[2];
 
-        titles = res.getStringArray(R.array.page_titles);
+        titles = r.getStringArray(R.array.page_titles);
         fragments[0] = new HubFragment();
 
 
         SensorFragment sensorFragment = new SensorFragment();
-        fragments[1] = (Fragment)sensorFragment;
+        fragments[1] = sensorFragment;
+
+        Log.v(TAG, "New Pager Adapter");
     }
 
     @Override
@@ -90,19 +57,7 @@ public class mPagerAdapter extends FragmentPagerAdapter {
     @Override
     public void registerDataSetObserver(DataSetObserver observer) {
         super.registerDataSetObserver(observer);
-        Log.w(TAG, "ADDING OBSERVER");
         DSO.add(observer);
-
-    }
-
-    public void refreshUI(){
-        for(DataSetObserver d : DSO){
-            d.onChanged();
-        }
-        fragments[0] = new HubFragment();
-    }
-
-    public void sensorScan(){
 
     }
 

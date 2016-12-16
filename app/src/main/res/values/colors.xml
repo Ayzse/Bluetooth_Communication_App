@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--<color name="colorPrimary">#3F51B5</color>-->
-    <color name="colorPrimary">#384D00</color>
-    <color name="colorPrimaryDark">#344508</color>
-    <color name="colorAccent">#9C5F0E</color>
-    <color name="PHLbrown">#9C5F0E</color>
-    <color name="PHLgreen">#384d00</color>
+    <color name="colorPrimary">#FF384D00</color>
+    <color name="colorPrimaryDark">#FF344508</color>
+    <color name="colorAccent">#FF9C5F0E</color>
+    <color name="PHLbrown">#FF9C5F0E</color>
+    <color name="PHLgreen">#FF384d00</color>
+    <color name="disconnected_color">#FFd3d3d3</color>
 </resources>

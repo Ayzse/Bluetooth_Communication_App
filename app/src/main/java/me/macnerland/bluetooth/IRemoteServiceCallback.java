@@ -1,6 +1,7 @@
 package me.macnerland.bluetooth;
 
 /**
+ * This is the callback to be used by the service
  * Created by doug on 12/13/16.
  */
 

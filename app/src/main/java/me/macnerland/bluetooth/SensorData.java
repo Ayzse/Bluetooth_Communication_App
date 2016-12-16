@@ -4,7 +4,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.content.Context;
 import android.graphics.Color;
-import android.os.Parcel;
+import android.support.v4.content.res.ResourcesCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -26,59 +26,56 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 
 /**
- * Provides the backing data on a connected sensor
- * This class represents a sesnor and all of the data associated with it.
+ * Provides the data and interface for a sensor
+ * This class represents a sensor and all of the data associated with it.
  * Created by Doug on 7/31/2016.
  */
-public class SensorData{
+class SensorData{
     private static final String TAG = "SensorData";
+    private static final int numberChildren = 1;
 
-    Context context;
+    private final Context context;
     private BluetoothGatt bluetooth;
     private boolean connected;
-    private boolean expanded;
-    Float currTemp;
-    Float currHumid;
+    private Float currTemp;
+    private Float currHumid;
 
-    GraphView temperatureGraph;
-    GraphView humidityGraph;
+    //data series for the graph view
+    private PointsGraphSeries<DataPoint> temperatureSeries;
+    private PointsGraphSeries<DataPoint> humiditySeries;
 
-    PointsGraphSeries<DataPoint> temperatureSeries;
-    PointsGraphSeries<DataPoint> humiditySeries;
+    //the data returned from the sensor does not indicate whether it is humidity or temperature,
+    //so this class must keep track of the data it is waiting for.
+    int dataState;
+    static final int NO_DATA_PENDING = 0;
+    static final int TEMPERATURE_DATA_PENDING = 1;
+    static final int HUMIDITY_DATA_PENDING = 2;
 
-    public int dataState;
-    public static final int NO_DATA_PENDING = 0;
-    public static final int TEMPERATURE_DATA_PENDING = 1;
-    public static final int HUMIDITY_DATA_PENDING = 2;
 
     private boolean write_enabled;
-    private String name;
-    private String address;
+    private final String name;
+    private final String address;
 
-    OutputStreamWriter osw_temp;
-    OutputStreamWriter osw_humid;
-
-    private static final String header_temp = "time, temperature\n";
-    private static final String header_humid = "time, humid\n";
-
+    //files representing the csv file outputs. These are initialized when the object is constructed
     private File out_temp;
     private File out_humid;
 
-    SensorData(Parcel in){
+    //output stream that writes to the csv files.
+    //Having two OutputStreams helps prevent race conditions
+    private OutputStreamWriter osw_temp;
+    private OutputStreamWriter osw_humid;
 
-    }
+    //csv file headers that indicate the data columns
+    private static final String header_temp = "time, temperature\n";
+    private static final String header_humid = "time, humid\n";
 
-    //create a disconnected sensor
-    SensorData(String addr, String nme, Context c, boolean can_write){
+    //create a disconnected sensor. This is called when restoring a sensor from csv
+    SensorData(String address, String nme, Context c, boolean can_write){
         connected = false;
         context = c;
-        expanded = false;
 
         currHumid = 0.0f;
         currTemp = 0.0f;
-
-        temperatureGraph = new GraphView(context);
-        temperatureGraph.setTitle("Temperature");
 
         temperatureSeries = new PointsGraphSeries<>();
         temperatureSeries.setColor(Color.BLUE);
@@ -86,13 +83,10 @@ public class SensorData{
         humiditySeries.setColor(Color.RED);
 
         name = nme;
-        address = addr;
+        this.address = address;
 
         if(can_write) {
-            if(can_write) {
-                Log.i(TAG, "Creating sensor with write enabled");
-                enableWrite();
-            }
+            enableWrite();
         }
         else{
             osw_humid = null;
@@ -100,17 +94,14 @@ public class SensorData{
         }
     }
 
+    //create a sensor. This is called when seeing a new sensor for the first time
     SensorData(BluetoothGatt bg, Context c, boolean can_write){
         connected = false;
         bluetooth = bg;
         context = c;
-        expanded = false;
 
         currHumid = 0.0f;
         currTemp = 0.0f;
-
-        temperatureGraph = new GraphView(context);
-        temperatureGraph.setTitle("Temperature");
 
         temperatureSeries = new PointsGraphSeries<>();
         temperatureSeries.setColor(Color.BLUE);
@@ -123,7 +114,6 @@ public class SensorData{
         address = bd.getAddress();
 
         if(can_write) {
-            Log.i(TAG, "Creating sensor with write enabled");
             enableWrite();
         }
         else{
@@ -132,12 +122,21 @@ public class SensorData{
         }
     }
 
-    public boolean enableWrite(){
+    //This is called when write access is suddenly granted, as in the case of Marshmallow and later
+    boolean enableWrite(){
+
+        //In the case that this has been previously called, return.
         if(write_enabled){
             return true;
         }
-        String filename_temp = context.getExternalFilesDir(null).toString() + "/sensors/" + name + "_" + address + "_temp.csv";
-        String filename_humid = context.getExternalFilesDir(null).toString() + "/sensors/" + name + "_" + address + "_humid.csv";
+
+        File external_dir = context.getExternalFilesDir(null);
+        if(external_dir == null){
+            return false;
+        }
+        String filename_temp = external_dir.toString() + "/sensors/" + name + "_" + address + "_temp.csv";
+        String filename_humid = external_dir.toString() + "/sensors/" + name + "_" + address + "_humid.csv";
+
         out_temp = new File(filename_temp);
         out_humid = new File(filename_humid);
 
@@ -171,7 +170,6 @@ public class SensorData{
             osw_temp = null;
             return false;
         }
-        Log.i(TAG, "Inserting old data");
         insertOldData(out_humid);
         insertOldData(out_temp);
         return true;
@@ -188,30 +186,33 @@ public class SensorData{
         start = n.indexOf("_", start) + 1;
         int end = n.indexOf(".", start);
         String type = n.substring(start, end);
-        Log.e(TAG, "Type: " + type);
 
         if(type.equals("temp")){
             try {
                 osw_temp.close();
             }catch (IOException io){
-
+                Log.e(TAG, io.toString());
             }
 
             //read in all of the temp data
             try {
-                String row = "";
+                String row;
                 BufferedReader br = new BufferedReader(new FileReader(out_temp));
                 while((row = br.readLine()) != null){
                     //split the rows up.
                     String[] args = row.split(",");
+
+                    //sometimes there is an extra row, just skip over it
+                    if(args.length < 2){
+                        continue;
+                    }
+
                     String timestamp = args[0];
                     String temp = args[1];
 
                     if(timestamp.charAt(0) > 58 || temp.charAt(0) > 58){
                         continue;
                     }
-
-                    Log.e(TAG, "inserting data: time: " + timestamp + " temp: " + temp);
 
                     long time = Long.parseLong(timestamp);
                     insertTemp(temp, time);
@@ -223,19 +224,19 @@ public class SensorData{
             try {
                 osw_temp = new OutputStreamWriter(new FileOutputStream(out_temp, true));
             }catch (IOException io){
-
+                Log.e(TAG, io.toString());
             }
         }
         if(type.equals("humid")){
             try {
                 osw_humid.close();
             }catch (IOException io){
-
+                Log.e(TAG, io.toString());
             }
 
             //read in all of the humidity data
             try {
-                String row = "";
+                String row;
                 BufferedReader br = new BufferedReader(new FileReader(out_humid));
                 while((row = br.readLine()) != null){
                     //split the rows up.
@@ -247,8 +248,6 @@ public class SensorData{
                         continue;
                     }
 
-                    Log.e(TAG, "inserting data: time: " + timestamp + " humid: " + humid);
-
                     long time = Long.parseLong(timestamp);
                     insertHumid(humid, time);
                 }
@@ -259,63 +258,67 @@ public class SensorData{
             try {
                 osw_humid = new OutputStreamWriter(new FileOutputStream(out_humid, true));
             }catch (IOException io){
-
+                Log.e(TAG, io.toString());
             }
         }
 
 
     }
 
-    public void connectGatt(BluetoothGatt b){
+    //This is called when connecting to sensors that have been previously connected to. (Those that
+    // already contain csv files.)
+    void connectGatt(BluetoothGatt b){
         bluetooth = b;
+        Connect();
     }
 
-    public boolean isConnected(){
+    boolean isConnected(){
         return connected;
     }
 
-    public void Connect(){
+    void Connect(){
         if(bluetooth != null) {
             connected = true;
         }
     }
 
-    public void Disconnect(){
+    void Disconnect(){
+        bluetooth = null;
         connected = false;
     }
 
-    public void insertTemp(String T, long time){
+    private void insertTemp(String T, long time){
         float temp = Float.parseFloat(T);
         temperatureSeries.appendData(new DataPoint(new Date(time), (double)temp), true, 10);
     }
 
-    public void updateTemp(String T){
-        currTemp = Float.parseFloat(T);
+    //temperature series must be thread-safe
+    void updateTemp(float T){
+        currTemp = T;
         GregorianCalendar gregorianCalendar = new GregorianCalendar();
         temperatureSeries.appendData(
                 new DataPoint(gregorianCalendar.getTime(), (double) currTemp),
                 true, 10);
         if(osw_temp != null) {
             try {
-                osw_temp.write("" + gregorianCalendar.getTimeInMillis() + "," + T + "\n");
+                osw_temp.write("" + gregorianCalendar.getTimeInMillis() + "," + currTemp + "\n");
             } catch (IOException io) {
                 Log.e(TAG, io.toString());
             }
         }
     }
 
-    public void insertHumid(String rH, long time){
+    private void insertHumid(String rH, long time){
         float humid = Float.parseFloat(rH);
         humiditySeries.appendData(new DataPoint(new Date(time), (double)humid), true, 10);
     }
 
-    public void updateHumid(String rH){
-        currHumid = Float.parseFloat(rH);
+    void updateHumid(float rH){
+        currHumid = rH;
         GregorianCalendar gregorianCalendar = new GregorianCalendar();
         humiditySeries.appendData(
                 new DataPoint(gregorianCalendar.getTime(), (double) currHumid),
-                false, 10);
-
+                true, 10);
         if(osw_humid != null) {
             try {
                 osw_humid.write("" + gregorianCalendar.getTimeInMillis() + "," + currHumid + "\n");
@@ -325,76 +328,110 @@ public class SensorData{
         }
     }
 
-    public Float getTemp(){
-        return currTemp;
-    }
-
-    public Float getHumid(){
-        return currHumid;
-    }
-
-    public BluetoothGatt getGATT(){
+    BluetoothGatt getGATT(){
         if(connected) {
             return bluetooth;
         }
         return null;
     }
 
-    public View getParentView(boolean isExpanded, View convertView, ViewGroup parent){
+    View getParentView(boolean isExpanded, View convertView, ViewGroup parent){
         View v;
-        LayoutInflater inflater = (LayoutInflater) context
-                .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        v = inflater.inflate(R.layout.sensor_group, parent, false);
+        if(isExpanded){
+            Log.v(TAG, "The view is expanded");
+        }
+
+        if(convertView != null){
+            v = convertView;
+        }else {
+            LayoutInflater inflater = (LayoutInflater) context
+                    .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            v = inflater.inflate(R.layout.sensor_group, parent, false);
+        }
 
         TextView groupTitle = (TextView)v.findViewById(R.id.sensor_group_text);
         groupTitle.setText(name);
 
-        TextView temp = (TextView)v.findViewById(R.id.temperature);
-        TextView humid = (TextView)v.findViewById(R.id.humidity);
+        if(!connected) {
+            int color = ResourcesCompat.getColor(context.getResources(), R.color.disconnected_color, null);
+            v.setBackgroundColor(color);
+        }else{
+            TextView temp = (TextView)v.findViewById(R.id.temperature);
+            TextView humid = (TextView)v.findViewById(R.id.humidity);
 
-        temp.setText("temperature: " + currTemp.toString() + " C");
-        humid.setText("humidity: " + currHumid.toString() + "%");
+            temp.setText("Temperature: " + currTemp.toString() + " C");
+            humid.setText("Humidity: " + currHumid.toString() + "%");
+        }
 
         return v;
     }
 
-    public View getChildView(int child, View convertView, ViewGroup parent){
+    View getChildView(int child, View convertView, ViewGroup parent){
 
         View v;
-        LayoutInflater inflater = (LayoutInflater) context
-                .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        v = inflater.inflate(R.layout.sensor_graph, parent, false);
+        if(convertView != null){
+            v = convertView;
+        }else {
+            LayoutInflater inflater = (LayoutInflater) context
+                    .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            v = inflater.inflate(R.layout.sensor_graph, parent, false);
+        }
 
         switch(child){
             case 0:
                 temperatureSeries.getHighestValueX();
                 humiditySeries.getHighestValueX();
 
-                temperatureGraph = (GraphView)v.findViewById(R.id.graph);
-                temperatureGraph.addSeries(temperatureSeries);
-                temperatureGraph.addSeries(humiditySeries);
-                temperatureGraph.getViewport().setXAxisBoundsManual(true);
-                temperatureGraph.getGridLabelRenderer().setLabelFormatter(new DateAsXAxisLabelFormatter(context));
-                temperatureGraph.getGridLabelRenderer().setNumHorizontalLabels(4);
+                GraphView graph = (GraphView)v.findViewById(R.id.graph);
+                graph.addSeries(temperatureSeries);
+                graph.addSeries(humiditySeries);
+                graph.getViewport().setXAxisBoundsManual(true);
+                graph.getGridLabelRenderer().setLabelFormatter(new DateAsXAxisLabelFormatter(context));
+                graph.getGridLabelRenderer().setNumHorizontalLabels(4);
                 return v;
+
         }
         return null;
     }
 
-    public boolean isExpanded(){
-        return expanded;
+    int nChildren(){
+        return numberChildren;
     }
 
-    public void expand(){
-        expanded = true;
+    void onPause(){
+        if(osw_humid !=null){
+            try{
+                osw_humid.close();
+            }catch(IOException io){
+                Log.e(TAG, io.toString());
+            }
+        }
+        if(osw_temp !=null){
+            try{
+                osw_temp.close();
+            }catch(IOException io){
+                Log.e(TAG, io.toString());
+            }
+        }
     }
 
-    public void collapse(){
-        expanded = false;
-    }
-
-    public int nChildren(){
-        return 1;
+    void onResume(){
+        if(write_enabled) {
+            if (osw_humid != null) {
+                try {
+                    osw_humid = new OutputStreamWriter(new FileOutputStream(out_humid, true));
+                } catch (IOException io) {
+                    Log.e(TAG, io.toString());
+                }
+            }
+            if (osw_temp != null) {
+                try {
+                    osw_temp = new OutputStreamWriter(new FileOutputStream(out_temp, true));
+                } catch (IOException io) {
+                    Log.e(TAG, io.toString());
+                }
+            }
+        }
     }
 
 }

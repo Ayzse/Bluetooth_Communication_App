@@ -8,8 +8,9 @@ import java.util.UUID;
 
 /**
  * Created by Doug on 8/15/2016.
+ * This represents a hub, and provides the underlying interface and data.
  */
-public class HubData {
+class HubData {
 
     private BluetoothGatt gatt;
 
