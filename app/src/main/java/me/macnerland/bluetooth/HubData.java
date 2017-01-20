@@ -3,6 +3,7 @@ package me.macnerland.bluetooth;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
+import android.util.Log;
 
 import java.util.UUID;
 
@@ -11,6 +12,7 @@ import java.util.UUID;
  * This represents a hub, and provides the underlying interface and data.
  */
 class HubData {
+    private static final String TAG = "HubData";
 
     private BluetoothGatt gatt;
 
@@ -25,24 +27,82 @@ class HubData {
 
     private boolean isConnected;
 
-    private static final byte[] removeASensor = {(byte)'9', (byte)' ', (byte)'\n'};
-    private static final byte[] terminator = {(byte)'\n'};
+    private static final int HUB_NO_DATA_PENDING = 0;
+    private static final int HUB_ALERT_PHONE_NUMBER_PENDING = 1;
+    private static final int HUB_PORTAL_PHONE_NUMBER_PENDING = 2;
+    private static final int HUB_PORTAL_FREQ_PENDING = 3;
+    private static final int HUB_LOG_FREQ_PENDING = 4;
+    private static final int HUB_TIME_PENDING = 5;
+    private static final int HUB_DATE_PENDING = 6;
+    private static final int HUB_CRIT_TEMP_PENDING = 7;
+    private static final int HUB_CRIT_HUM_PENDING = 8;
+    private int datastate;
+
+    //From Luis's command list. Commands 1, 6, 7, 27 have not been implemented and are
+    //indices 0, 5, 6, and 26
+    //each command is the index into the command_formats array
+    static final int getHubId = 1;
+    static final int setHubId = 2;
+    static final int getNumberOfSensors = 3;
+    static final int getListOfSensors = 4;
+    static final int getASensorID = 0;
+    static final int setASensorID = 0;
+    static final int addASensor = 7;
+    static final int removeASensor = 8;
+    static final int removeAllSensors = 9;
+    static final int getAlertPhoneNumber = 10;
+    static final int setAlertPhoneNumber = 11;
+    static final int getPortalPhoneNumber = 12;
+    static final int setPortalPhoneNumber = 13;
+    static final int getPortalNotificationFreq = 14;
+    static final int setPortalNotificationFreq = 15;
+    static final int getLoggingFrequency = 16;
+    static final int setLoggingFrequency = 17;
+    static final int getHubTime = 18;
+    static final int setHubTime = 19;
+    static final int getHubDate = 20;
+    static final int setHubDate = 21;
+    static final int getCriticalTemperature = 22;
+    static final int setCriticalTemperature = 23;
+    static final int getCriticalHumidity = 24;
+    static final int setCriticalHumidity =25;
+
+    private static final String[] command_formats = {"",
+    "2 \n",
+    "3 %s\n",
+    "4 \n",
+    "5 \n",
+    "",
+    "",
+    "8 %s\n",
+    "9 %s\n",
+    "10 \n",
+    "11 \n",
+    "12 %s\n",
+    "13 \n",
+    "14 %s\n",
+    "15 \n",
+    "16 %s\n",
+    "17 \n",
+    "18 %s\n",
+    "19 \n",
+    "20 %s\n",
+    "21 \n",
+    "22 %s\n",
+    "23 \n",
+    "24 %s\n",
+    "25 \n",
+    "26 %s\n",
+    ""};
 
 
-    private static final byte[] removeAllSensors = {(byte)'1', (byte)'0', (byte)' ', (byte)'\n'};
-    private static final byte[] getAlertNumber = {(byte)'1', (byte)'1', (byte)' ', (byte)'\n'};
-    private static final byte[] getPortalNumber = {(byte)'1', (byte)'3', (byte)' ', (byte)'\n'};
-    private static final byte[] getPortalFreq = {(byte)'1', (byte)'5', (byte)' ', (byte)'\n'};
-    private static final byte[] getLogFreq = {(byte)'1', (byte)'7', (byte)' ', (byte)'\n'};
-    private static final byte[] getHubTime = {(byte)'1', (byte)'9', (byte)' ', (byte)'\n'};
-    private static final byte[] getHubDate = {(byte)'2', (byte)'1', (byte)' ', (byte)'\n'};
-    private static final byte[] getCritTemp = {(byte)'2', (byte)'3', (byte)' ', (byte)'\n'};
-    private static final byte[] getCritHum = {(byte)'2', (byte)'5', (byte)' ', (byte)'\n'};
-
-    private static UUID hubServiceGattUUID =      new UUID(0x0000ffe000001000L, 0x800000805f9b34fbL);
+    private static UUID hubServiceGattUUID =      new UUID(0x0000ece000001000L, 0x800000805f9b34fbL);
     private static final UUID hubCharacteristicGattUUID =   new UUID(0x0000ffe100001000L, 0x800000805f9b34fbL);
 
+    private boolean initializing;
+
     HubData(BluetoothGatt bg){
+        datastate = HUB_NO_DATA_PENDING;
         gatt = bg;
 
         hubAlertNumber = "No Hub Connected";
@@ -55,6 +115,13 @@ class HubData {
         hubCritHum = "No Hub Connected";
 
         isConnected = false;
+        initializing = false;
+    }
+
+    //call this to retrieve all of the hub info
+    void initialize(){
+        initializing = true;
+        sendCommand(getAlertPhoneNumber, "");
     }
 
     public void setAlertNumber(String value){
@@ -135,77 +202,191 @@ class HubData {
         return hubCritHum;
     }
 
-    /* */
+    //Issue a command to the hub. command must be one of the enumerated commands.
+    //The parameter is the argument for the command. Some commands will not have parameters
+    boolean sendCommand(int command, String parameter){
+        //if the parameter is greater than the maximum parameter length, return.
+        //if bad command, return. If currently waiting for data, return.
+        if(parameter.length() > 16 || command == 0 || datastate != HUB_NO_DATA_PENDING){
+            return false;
+        }
 
-    public void fetchPortalNumber(){
+        //different commands have different options
+        String str = command_formats[command];
+        switch(command){
+            case 2:
+                str = String.format(str, parameter);
+                Log.v(TAG, "Adding in parameter: " + parameter);
+                break;
+            case 5:
+                str = String.format(str, parameter);
+                Log.v(TAG, "Adding in parameter: " + parameter);
+                break;
+            case 6:
+                str = String.format(str, parameter);
+                Log.v(TAG, "Adding in parameter: " + parameter);
+                break;
+            case 7:
+                str = String.format(str, parameter);
+                Log.v(TAG, "Adding in parameter: " + parameter);
+                break;
+            case 8:
+                str = String.format(str, parameter);
+                Log.v(TAG, "Adding in parameter: " + parameter);
+                break;
+            case 10://get alert phone number
+                datastate = HUB_ALERT_PHONE_NUMBER_PENDING;
+                break;
+            case 11:
+                str = String.format(str, parameter);
+                Log.v(TAG, "Adding in parameter: " + parameter);
+                break;
+            case 12://get portal phone number
+                datastate = HUB_PORTAL_PHONE_NUMBER_PENDING;
+                break;
+            case 13://set portal phone number
+                str = String.format(str, parameter);
+                Log.v(TAG, "Adding in parameter: " + parameter);
+                break;
+            case 14://get portal notification frequency
+                datastate = HUB_PORTAL_FREQ_PENDING;
+                break;
+            case 15:
+                str = String.format(str, parameter);
+                Log.v(TAG, "Adding in parameter: " + parameter);
+                break;
+            case 16://get logging frequency
+                datastate = HUB_LOG_FREQ_PENDING;
+                break;
+            case 17:
+                str = String.format(str, parameter);
+                Log.v(TAG, "Adding in parameter: " + parameter);
+                break;
+            case 18://get hub time
+                datastate = HUB_TIME_PENDING;
+                break;
+            case 19:
+                str = String.format(str, parameter);
+                Log.v(TAG, "Adding in parameter: " + parameter);
+                break;
+            case 20://get hub date
+                datastate = HUB_DATE_PENDING;
+                break;
+            case 21:
+                str = String.format(str, parameter);
+                Log.v(TAG, "Adding in parameter: " + parameter);
+                break;
+            case 22://get critical temperature
+                datastate = HUB_CRIT_TEMP_PENDING;
+                break;
+            case 23:
+                str = String.format(str, parameter);
+                Log.v(TAG, "Adding in parameter: " + parameter);
+                break;
+            case 24://get critical humidity
+                datastate = HUB_CRIT_HUM_PENDING;
+                break;
+            case 25:
+                str = String.format(str, parameter);
+                Log.v(TAG, "Adding in parameter: " + parameter);
+                break;
+            default:
+                break;
+        }
+        Log.v(TAG, "sending hub command: " + str);
+
         BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
-        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-        bgc.setValue(getPortalNumber);
-        gatt.writeCharacteristic(bgc);
+        if(bgs != null) {
+            BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
+            if(bgc != null){
+
+                char[] strAsCharacters = str.toCharArray();
+                byte[] strAsBytes = new byte[strAsCharacters.length];
+                for(int i = 0; i < strAsCharacters.length; ++i){
+                    strAsBytes[i] = (byte)strAsCharacters[i];
+                }
+
+
+                bgc.setValue(strAsBytes);
+                gatt.writeCharacteristic(bgc);
+                return true;
+            }else{
+                Log.e(TAG, "Hub's Bluetooth gatt Characteristic is null");
+            }
+        }else{
+            Log.e(TAG, "Hub's Bluetooth Gatt Service is null");
+        }
+        return false;
     }
 
-    public void fetchAlertNumber(){
-        BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
-        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-        bgc.setValue(getAlertNumber);
-        gatt.writeCharacteristic(bgc);
-    }
-
-    public void fetchPortalFreq(){
-        BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
-        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-        bgc.setValue(getPortalFreq);
-        gatt.writeCharacteristic(bgc);
-    }
-
-    public void fetchLogFreq(){
-        BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
-        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-        bgc.setValue(getLogFreq);
-        gatt.writeCharacteristic(bgc);
-    }
-
-    public void fetchTime(){
-        BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
-        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-        bgc.setValue(getHubTime);
-        gatt.writeCharacteristic(bgc);
-    }
-
-    public void fetchDate(){
-        BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
-        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-        bgc.setValue(getHubDate);
-        gatt.writeCharacteristic(bgc);
-    }
-
-    public void fetchCritTemp(){
-        BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
-        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-        bgc.setValue(getCritTemp);
-        gatt.writeCharacteristic(bgc);
-    }
-
-    public void fetchCritHumid(){
-        BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
-        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-        bgc.setValue(getCritHum);
-        gatt.writeCharacteristic(bgc);
-    }
-
-    public void removeSensor(String name){
-        BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
-        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-        bgc.setValue(removeASensor);
-        gatt.writeCharacteristic(bgc);
-
-    }
-
-    public void removeAllSensors(){
-        BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
-        BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-        bgc.setValue(removeAllSensors);
-        gatt.writeCharacteristic(bgc);
+    //recieve the data for this hub. The data will not include the type of information
+    //so it is important that the hub keeps track of what type data it is asking for
+    boolean receiveData(String data){
+        boolean ret = false;
+        int temp = datastate;
+        switch(temp){
+            case HUB_ALERT_PHONE_NUMBER_PENDING:
+                hubAlertNumber = data;
+                datastate = HUB_NO_DATA_PENDING;
+                if(initializing){
+                    sendCommand(getPortalPhoneNumber, "");
+                }
+                break;
+            case HUB_PORTAL_PHONE_NUMBER_PENDING:
+                hubPortalNumber = data;
+                datastate = HUB_NO_DATA_PENDING;
+                if(initializing){
+                    sendCommand(getPortalNotificationFreq, "");
+                }
+                break;
+            case HUB_PORTAL_FREQ_PENDING:
+                hubPortalFreq = data;
+                datastate = HUB_NO_DATA_PENDING;
+                if(initializing){
+                    sendCommand(getLoggingFrequency, "");
+                }
+                break;
+            case HUB_LOG_FREQ_PENDING:
+                hubLogFreq = data;
+                datastate = HUB_NO_DATA_PENDING;
+                if(initializing){
+                    sendCommand(getHubTime, "");
+                }
+                break;
+            case HUB_TIME_PENDING:
+                hubTime = data;
+                datastate = HUB_NO_DATA_PENDING;
+                if(initializing){
+                    sendCommand(getHubDate, "");
+                }
+                break;
+            case HUB_DATE_PENDING:
+                hubDate = data;
+                datastate = HUB_NO_DATA_PENDING;
+                if(initializing){
+                    sendCommand(getCriticalTemperature, "");
+                }
+                break;
+            case HUB_CRIT_TEMP_PENDING:
+                hubCritTemp = data;
+                datastate = HUB_NO_DATA_PENDING;
+                if(initializing){
+                    sendCommand(getCriticalHumidity, "");
+                }
+                break;
+            case HUB_CRIT_HUM_PENDING:
+                hubCritHum = data;
+                datastate = HUB_NO_DATA_PENDING;
+                if(initializing){
+                    initializing = false;
+                    ret = true;
+                }
+                break;
+            case HUB_NO_DATA_PENDING:
+            default:
+                Log.e(TAG, "Bad Data State");
+        }
+        return ret;
     }
     
 }

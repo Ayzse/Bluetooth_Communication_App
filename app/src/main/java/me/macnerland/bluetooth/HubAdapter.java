@@ -50,6 +50,19 @@ class HubAdapter implements ListAdapter {
         return null;
     }
 
+    boolean deliverData(String address, String data){
+        if(hubIndex.keySet().contains(address)){
+            return hubs.get(hubIndex.get(address)).receiveData(data);
+        }
+        return false;
+    }
+
+    void initialize(String address){
+        if(hubIndex.keySet().contains(address)){
+            hubs.get(hubIndex.get(address)).initialize();
+        }
+    }
+
     @Override
     public boolean areAllItemsEnabled() {
         return true;

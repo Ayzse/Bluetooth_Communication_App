@@ -69,22 +69,10 @@ public class MainActivity extends AppCompatActivity {
     private static BluetoothAdapter bluetoothAdapter;
     private static BluetoothService bluetooth;
 
-    private static final int HUB_NO_DATA_PENDING = 0;
-    private static final int HUB_ALERT_PHONE_NUMBER_PENDING = 1;
-    private static final int HUB_PORTAL_PHONE_NUMBER_PENDING = 2;
-    private static final int HUB_PORTAL_FREQ_PENDING = 3;
-    private static final int HUB_LOG_FREQ_PENDING = 4;
-    private static final int HUB_TIME_PENDING = 5;
-    private static final int HUB_DATE_PENDING = 6;
-    private static final int HUB_CRIT_TEMP_PENDING = 7;
-    private static final int HUB_CRIT_HUM_PENDING = 8;
-    private int hubDataState;
-
     //private static final String[] marshmallow_permissions = new String(){android.Manifest.permission.ACCESS_FINE_LOCATION};
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        hubDataState = HUB_NO_DATA_PENDING;
         setContentView(R.layout.tab_pager);
 
         context = this;
@@ -114,7 +102,6 @@ public class MainActivity extends AppCompatActivity {
                     ServiceConnection con = new conn();
                     Intent btIntent = new Intent(this, BluetoothService.class);
                     startService(btIntent);
-                    Log.i(TAG, "Binding");
                     bindService(btIntent, con, BIND_AUTO_CREATE);
                     registerReceiver(mGattUpdateReceiver, getGATTFilters());
                 }
@@ -145,7 +132,6 @@ public class MainActivity extends AppCompatActivity {
                     ServiceConnection con = new conn();
                     Intent btIntent = new Intent(this, BluetoothService.class);
                     startService(btIntent);
-                    Log.i(TAG, "Binding");
                     bindService(btIntent, con, BIND_AUTO_CREATE);
                     registerReceiver(mGattUpdateReceiver, getGATTFilters());
                 }
@@ -251,7 +237,6 @@ public class MainActivity extends AppCompatActivity {
     private IRemoteServiceCallback blueCallback = new IRemoteServiceCallback(){
         @Override
         public void valueChanged(String action, String address, String returnData) {
-            Log.i(TAG, "IPC works again!!!" + action + " " + address);
             if (BluetoothService.SENSOR_ACTION_GATT_CONNECTED.equals(action)) {
                 sensorAdapter.connectSensor(address);
             } else if (BluetoothService.SENSOR_ACTION_GATT_DISCONNECTED.equals(action)) {
@@ -275,48 +260,13 @@ public class MainActivity extends AppCompatActivity {
                 if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
                     bg.setCharacteristicNotification(bgc, true);
                 }
-                hubAdapter.getHub(address).fetchAlertNumber();
-                hubDataState++;
+
+                //hubAdapter.getHub(address).sendCommand(HubData.getAlertPhoneNumber, "");
+                hubAdapter.initialize(address);
             } else if (BluetoothService.HUB_ACTION_DATA_AVAILABLE.equals(action)){
-                String value = returnData;
-                HubData hub = hubAdapter.getHub(address);
-                Log.i(TAG, "Value: " + value);
-                switch(hubDataState){
-                    case HUB_ALERT_PHONE_NUMBER_PENDING:
-                        hub.setAlertNumber(value);
-                        hub.fetchPortalNumber();
-                        break;
-                    case HUB_PORTAL_PHONE_NUMBER_PENDING:
-                        hub.setPortalNumber(value);
-                        hub.fetchPortalFreq();
-                        break;
-                    case HUB_PORTAL_FREQ_PENDING:
-                        hub.setPortalFreq(value);
-                        hub.fetchLogFreq();
-                        break;
-                    case HUB_LOG_FREQ_PENDING:
-                        hub.setLogFrequency(value);
-                        hub.fetchTime();
-                        break;
-                    case HUB_TIME_PENDING:
-                        hub.setTime(value);
-                        hub.fetchDate();
-                        break;
-                    case HUB_DATE_PENDING:
-                        hub.setDate(value);
-                        hub.fetchCritTemp();
-                        break;
-                    case HUB_CRIT_TEMP_PENDING:
-                        hub.setCriticalTemperature(value);
-                        hub.fetchCritHumid();
-                        break;
-                    case HUB_CRIT_HUM_PENDING:
-                        hub.setCriticalHumidity(value);
-                        Log.w(TAG, "Refreshing UI");
-                        hubAdapter.notifyDSO();
-                        break;
+                if(hubAdapter.deliverData(address, returnData)){
+                    hubAdapter.notifyDSO();
                 }
-                hubDataState++;
             }
         }
 
@@ -335,7 +285,7 @@ public class MainActivity extends AppCompatActivity {
             final String action = intent.getAction();
             final String address = intent.getStringExtra(BluetoothService.ADDRESS_DATA);
             if (BluetoothService.SENSOR_ACTION_GATT_CONNECTED.equals(action)) {
-
+                sensorAdapter.connectSensor(address);
             } else if (BluetoothService.SENSOR_ACTION_GATT_DISCONNECTED.equals(action)) {
                 sensorAdapter.disconnectSensor(address);
             } else if (BluetoothService.SENSOR_ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
@@ -357,48 +307,12 @@ public class MainActivity extends AppCompatActivity {
                 if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
                     bg.setCharacteristicNotification(bgc, true);
                 }
-                hubAdapter.getHub(address).fetchAlertNumber();
-                hubDataState++;
+                hubAdapter.initialize(address);
             } else if (BluetoothService.HUB_ACTION_DATA_AVAILABLE.equals(action)){
                 String value = intent.getStringExtra(BluetoothService.EXTRA_DATA);
-                HubData hub = hubAdapter.getHub(address);
-                Log.i(TAG, "Value: " + value);
-                switch(hubDataState){
-                    case HUB_ALERT_PHONE_NUMBER_PENDING:
-                        hub.setAlertNumber(value);
-                        hub.fetchPortalNumber();
-                        break;
-                    case HUB_PORTAL_PHONE_NUMBER_PENDING:
-                        hub.setPortalNumber(value);
-                        hub.fetchPortalFreq();
-                        break;
-                    case HUB_PORTAL_FREQ_PENDING:
-                        hub.setPortalFreq(value);
-                        hub.fetchLogFreq();
-                        break;
-                    case HUB_LOG_FREQ_PENDING:
-                        hub.setLogFrequency(value);
-                        hub.fetchTime();
-                        break;
-                    case HUB_TIME_PENDING:
-                        hub.setTime(value);
-                        hub.fetchDate();
-                        break;
-                    case HUB_DATE_PENDING:
-                        hub.setDate(value);
-                        hub.fetchCritTemp();
-                        break;
-                    case HUB_CRIT_TEMP_PENDING:
-                        hub.setCriticalTemperature(value);
-                        hub.fetchCritHumid();
-                        break;
-                    case HUB_CRIT_HUM_PENDING:
-                        hub.setCriticalHumidity(value);
-                        Log.w(TAG, "Refreshing UI");
-                        hubAdapter.notifyDSO();
-                        break;
+                if(hubAdapter.deliverData(address, value)){
+                    hubAdapter.notifyDSO();
                 }
-                hubDataState++;
             }
         }
     };
@@ -415,7 +329,6 @@ public class MainActivity extends AppCompatActivity {
         intentFilter.addAction(BluetoothService.HUB_ACTION_DATA_AVAILABLE);
         return intentFilter;
     }
-
 
     //android activity lifecycle ovverrides
     @Override

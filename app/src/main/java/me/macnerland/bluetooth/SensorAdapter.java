@@ -107,9 +107,6 @@ class SensorAdapter implements ExpandableListAdapter {
     void addSensor(BluetoothGatt bg, Context c){
         String address = bg.getDevice().getAddress();
         Log.d(TAG, "adding sensor with address" + address);
-        for(BluetoothGattService bgs : bg.getServices()){
-            Log.d(TAG, "with service: " + bgs.getUuid().toString());
-        }
         //If this address has never been seen before, add it into the list.
         if(!sensorIndex.keySet().contains(address)) {
             SensorData data = new SensorData(bg, c, can_write);
@@ -145,23 +142,36 @@ class SensorAdapter implements ExpandableListAdapter {
             for (SensorData con : sensors) {
                 if (con.isConnected()) {
                     BluetoothGatt gatt = con.getGATT();
+                    BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                    if (bs == null) {
+                        //services have not ben discovered
+                        break;
+                    }
                     BluetoothGattCharacteristic bgc =
-                            gatt.getService(sensorServiceGattUUID).getCharacteristic(sensorCharacteristicUUID);
-                    bgc.setValue(TempCommand);
-                    gatt.writeCharacteristic(bgc);
+                            bs.getCharacteristic(sensorCharacteristicUUID);
+                    if(bgc == null) {
+                        Log.i(TAG, "null characteristic");
+                        break;
+                    } else {
+                        bgc.setValue(TempCommand);
+                        gatt.writeCharacteristic(bgc);
+                        con.dataState = SensorData.TEMPERATURE_DATA_PENDING;
+                    }
                 }
             }
-        //read value
+            //read value
+
             for (SensorData con : sensors) {
                 if (con.isConnected()) {
                     BluetoothGatt gatt = con.getGATT();
-                    BluetoothGattCharacteristic bgc =
-                            gatt.getService(sensorServiceGattUUID).getCharacteristic(sensorCharacteristicUUID);
+                    BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                    if(bs == null) break;
+                    BluetoothGattCharacteristic bgc = bs.getCharacteristic(sensorCharacteristicUUID);
+                    if(bgc == null) break;
                     gatt.readCharacteristic(bgc);
                     con.dataState = SensorData.TEMPERATURE_DATA_PENDING;
                 }
             }
-
     }
 
     void updateHumidity(){
@@ -199,19 +209,7 @@ class SensorAdapter implements ExpandableListAdapter {
 
     void deliverData(String address, String value){
         SensorData sensor = sensors.get(sensorIndex.get(address));
-        float valueAsFloat = Float.parseFloat(value);
-        switch(sensor.dataState){
-            case SensorData.TEMPERATURE_DATA_PENDING:
-                sensor.updateTemp(valueAsFloat);
-                break;
-            case SensorData.HUMIDITY_DATA_PENDING:
-                sensor.updateHumid(valueAsFloat);
-                break;
-            default:
-                Log.e(TAG, "Bad data state");
-                break;
-        }
-        sensor.dataState = SensorData.NO_DATA_PENDING;
+        sensor.receiveData(value);
     }
 
     void connectSensor(String address){
@@ -241,7 +239,7 @@ class SensorAdapter implements ExpandableListAdapter {
     }
 
 
-    /*BEGIN android methods*/
+    /*BEGIN android list View methods*/
     @Override
     public void registerDataSetObserver(DataSetObserver observer) {
         DSO.add(observer);

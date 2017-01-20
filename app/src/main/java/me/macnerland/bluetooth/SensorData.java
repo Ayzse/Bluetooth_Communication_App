@@ -269,7 +269,6 @@ class SensorData{
     // already contain csv files.)
     void connectGatt(BluetoothGatt b){
         bluetooth = b;
-        Connect();
     }
 
     boolean isConnected(){
@@ -277,34 +276,23 @@ class SensorData{
     }
 
     void Connect(){
-        if(bluetooth != null) {
-            connected = true;
-        }
+        connected = true;
     }
 
     void Disconnect(){
-        bluetooth = null;
         connected = false;
     }
 
+    //this does not write to the csv
     private void insertTemp(String T, long time){
         float temp = Float.parseFloat(T);
         temperatureSeries.appendData(new DataPoint(new Date(time), (double)temp), true, 10);
     }
 
     //temperature series must be thread-safe
-    void updateTemp(float T){
-        currTemp = T;
-        GregorianCalendar gregorianCalendar = new GregorianCalendar();
-        temperatureSeries.appendData(
-                new DataPoint(gregorianCalendar.getTime(), (double) currTemp),
-                true, 10);
-        if(osw_temp != null) {
-            try {
-                osw_temp.write("" + gregorianCalendar.getTimeInMillis() + "," + currTemp + "\n");
-            } catch (IOException io) {
-                Log.e(TAG, io.toString());
-            }
+    private void updateTemp(float T){
+        if(connected){
+
         }
     }
 
@@ -313,7 +301,7 @@ class SensorData{
         humiditySeries.appendData(new DataPoint(new Date(time), (double)humid), true, 10);
     }
 
-    void updateHumid(float rH){
+    private void updateHumid(float rH){
         currHumid = rH;
         GregorianCalendar gregorianCalendar = new GregorianCalendar();
         humiditySeries.appendData(
@@ -326,6 +314,46 @@ class SensorData{
                 Log.e(TAG, io.toString());
             }
         }
+    }
+
+    void receiveData(String value){
+
+        float valueAsFloat = 0.0f;
+        if(value.equals("nan")){
+            Log.e(TAG, "sensor error: check connection between temp/hum detector and sensor board");
+            return;
+        }
+
+        try {
+            valueAsFloat = Float.parseFloat(value);
+        }catch(NumberFormatException nfe){
+            Log.e(TAG, "Bad value: " + value);
+            return;
+        }
+
+        switch(dataState){
+            case SensorData.TEMPERATURE_DATA_PENDING:
+                currTemp = valueAsFloat;
+                GregorianCalendar gregorianCalendar = new GregorianCalendar();
+                temperatureSeries.appendData(
+                        new DataPoint(gregorianCalendar.getTime(), (double) currTemp),
+                        true, 10);
+                if(osw_temp != null) {
+                    try {
+                        osw_temp.write("" + gregorianCalendar.getTimeInMillis() + "," + currTemp + "\n");
+                    } catch (IOException io) {
+                        Log.e(TAG, io.toString());
+                    }
+                }
+                break;
+            case SensorData.HUMIDITY_DATA_PENDING:
+                updateHumid(valueAsFloat);
+                break;
+            default:
+                Log.e(TAG, "Bad data state");
+                break;
+        }
+        dataState = SensorData.NO_DATA_PENDING;
     }
 
     BluetoothGatt getGATT(){
@@ -356,6 +384,9 @@ class SensorData{
             int color = ResourcesCompat.getColor(context.getResources(), R.color.disconnected_color, null);
             v.setBackgroundColor(color);
         }else{
+            int color = ResourcesCompat.getColor(context.getResources(), R.color.connected_color, null);
+            v.setBackgroundColor(color);
+
             TextView temp = (TextView)v.findViewById(R.id.temperature);
             TextView humid = (TextView)v.findViewById(R.id.humidity);
 
@@ -369,13 +400,10 @@ class SensorData{
     View getChildView(int child, View convertView, ViewGroup parent){
 
         View v;
-        if(convertView != null){
-            v = convertView;
-        }else {
-            LayoutInflater inflater = (LayoutInflater) context
-                    .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            v = inflater.inflate(R.layout.sensor_graph, parent, false);
-        }
+
+        LayoutInflater inflater = (LayoutInflater) context
+                .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        v = inflater.inflate(R.layout.sensor_graph, parent, false);
 
         switch(child){
             case 0:

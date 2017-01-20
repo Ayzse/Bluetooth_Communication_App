@@ -219,9 +219,6 @@ public class BluetoothService extends Service {
     };
 
     private void broadcastUpdate(final String action, final String address) {
-        if(mCallback != null){
-            //mCallback.valueChanged(action, address, "");
-        }
         final Intent intent = new Intent(action);
         intent.putExtra(ADDRESS_DATA, address);
         sendBroadcast(intent);
@@ -248,11 +245,6 @@ public class BluetoothService extends Service {
         }
         intent.putExtra(ADDRESS_DATA, address);
 
-        if(mCallback != null){
-            //mCallback.valueChanged(action, address, returnData);
-        }
-
         sendBroadcast(intent);
-
     }
 }

@@ -7,4 +7,5 @@
     <color name="PHLbrown">#FF9C5F0E</color>
     <color name="PHLgreen">#FF384d00</color>
     <color name="disconnected_color">#FFd3d3d3</color>
+    <color name="connected_color">#FFFFFFFF</color>
 </resources>
