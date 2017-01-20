@@ -16,7 +16,7 @@ import java.util.Vector;
 
 /**
  * Created by Doug on 8/15/2016.
- * This contains a loist of all the connected hubs
+ * This contains a list of all the connected hubs
  */
 class HubAdapter implements ListAdapter {
 

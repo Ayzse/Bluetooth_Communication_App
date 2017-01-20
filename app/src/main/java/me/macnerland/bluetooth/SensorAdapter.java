@@ -46,7 +46,6 @@ class SensorAdapter implements ExpandableListAdapter {
 
     private static boolean can_write;
 
-
     SensorAdapter(Context c){
         context = c;
         sensors = new Vector<>();
@@ -140,7 +139,7 @@ class SensorAdapter implements ExpandableListAdapter {
     void updateTemperature(){
         //write command
             for (SensorData con : sensors) {
-                if (con.isConnected()) {
+                if (con.isConnected() && con.dataState == SensorData.NO_DATA_PENDING) {
                     BluetoothGatt gatt = con.getGATT();
                     BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
                     if (bs == null) {
@@ -175,36 +174,69 @@ class SensorAdapter implements ExpandableListAdapter {
     }
 
     void updateHumidity(){
-            for (SensorData con : sensors) {
-                if (con.isConnected()) {
-                    BluetoothGatt gatt = con.getGATT();
-                    BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
-                    if (bs == null) {
-                        //services have not ben discovered
-                        break;
-                    }
-                    BluetoothGattCharacteristic bgc =
-                            bs.getCharacteristic(sensorCharacteristicUUID);
-                    if (bgc == null) {
-                        Log.i(TAG, "null characteristic");
-                    } else {
-                        bgc.setValue(HumidCommand);
-                        gatt.writeCharacteristic(bgc);
-                        con.dataState = SensorData.HUMIDITY_DATA_PENDING;
-                    }
+        for (SensorData con : sensors) {
+            if (con.isConnected() && con.dataState == SensorData.NO_DATA_PENDING) {
+                BluetoothGatt gatt = con.getGATT();
+                BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                if (bs == null) {
+                    //services have not ben discovered
+                    break;
                 }
-            }
-            for (SensorData con : sensors) {
-                if (con.isConnected()) {
-                    BluetoothGatt gatt = con.getGATT();
-                    BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
-                    if (bs == null) break;
-                    BluetoothGattCharacteristic bgc =
-                            bs.getCharacteristic(sensorCharacteristicUUID);
-                    gatt.readCharacteristic(bgc);
+                BluetoothGattCharacteristic bgc =
+                        bs.getCharacteristic(sensorCharacteristicUUID);
+                if (bgc == null) {
+                    Log.i(TAG, "null characteristic");
+                } else {
+                    bgc.setValue(HumidCommand);
+                    gatt.writeCharacteristic(bgc);
                     con.dataState = SensorData.HUMIDITY_DATA_PENDING;
                 }
             }
+        }
+        for (SensorData con : sensors) {
+            if (con.isConnected()) {
+                BluetoothGatt gatt = con.getGATT();
+                BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                if (bs == null) break;
+                BluetoothGattCharacteristic bgc =
+                        bs.getCharacteristic(sensorCharacteristicUUID);
+                gatt.readCharacteristic(bgc);
+                con.dataState = SensorData.HUMIDITY_DATA_PENDING;
+            }
+        }
+    }
+
+    void updateBoth(){
+        for (SensorData con : sensors) {
+            if (con.isConnected() && con.dataState == SensorData.NO_DATA_PENDING) {
+                BluetoothGatt gatt = con.getGATT();
+                BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                if (bs == null) {
+                    //services have not ben discovered
+                    break;
+                }
+                BluetoothGattCharacteristic bgc =
+                        bs.getCharacteristic(sensorCharacteristicUUID);
+                if (bgc == null) {
+                    Log.i(TAG, "null characteristic");
+                } else {
+                    bgc.setValue(HumidCommand);
+                    gatt.writeCharacteristic(bgc);
+                    con.dataState = SensorData.HUMIDITY_THEN_TEMP;
+                }
+            }
+        }
+        for (SensorData con : sensors) {
+            if (con.isConnected()) {
+                BluetoothGatt gatt = con.getGATT();
+                BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                if (bs == null) break;
+                BluetoothGattCharacteristic bgc =
+                        bs.getCharacteristic(sensorCharacteristicUUID);
+                gatt.readCharacteristic(bgc);
+                con.dataState = SensorData.HUMIDITY_THEN_TEMP;
+            }
+        }
     }
 
     void deliverData(String address, String value){

@@ -1,5 +1,6 @@
 package me.macnerland.bluetooth;
 
+import android.app.Activity;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.content.Context;
@@ -50,6 +51,7 @@ class SensorData{
     static final int NO_DATA_PENDING = 0;
     static final int TEMPERATURE_DATA_PENDING = 1;
     static final int HUMIDITY_DATA_PENDING = 2;
+    static final int HUMIDITY_THEN_TEMP = 3;
 
 
     private boolean write_enabled;
@@ -84,6 +86,8 @@ class SensorData{
 
         name = nme;
         this.address = address;
+
+        dataState = NO_DATA_PENDING;
 
         if(can_write) {
             enableWrite();
@@ -349,6 +353,11 @@ class SensorData{
             case SensorData.HUMIDITY_DATA_PENDING:
                 updateHumid(valueAsFloat);
                 break;
+            case SensorData.HUMIDITY_THEN_TEMP:
+                updateHumid(valueAsFloat);
+                SensorAdapter get = MainActivity.getSensorAdapter();
+                get.updateTemperature();
+                break;
             default:
                 Log.e(TAG, "Bad data state");
                 break;
@@ -365,10 +374,6 @@ class SensorData{
 
     View getParentView(boolean isExpanded, View convertView, ViewGroup parent){
         View v;
-        if(isExpanded){
-            Log.v(TAG, "The view is expanded");
-        }
-
         if(convertView != null){
             v = convertView;
         }else {
