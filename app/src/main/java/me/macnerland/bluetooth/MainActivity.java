@@ -169,6 +169,7 @@ public class MainActivity extends AppCompatActivity {
         return sensorAdapter;
     }
 
+    //Method callable from view
     public void updateH(View Null){
         bluetoothAdapter.stopLeScan(sensorScanCallback);
         sensorAdapter.updateHumidity();
