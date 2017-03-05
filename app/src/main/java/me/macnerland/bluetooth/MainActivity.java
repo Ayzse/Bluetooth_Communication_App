@@ -38,6 +38,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ExpandableListAdapter;
 import android.widget.SimpleExpandableListAdapter;
+import android.widget.Toast;
 
 import java.util.Hashtable;
 import java.util.List;
@@ -116,6 +117,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //used in Marshmellow and above
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            String permissions[], int[] grantResults){
@@ -176,11 +178,13 @@ public class MainActivity extends AppCompatActivity {
         //sensorAdapter.updateBoth();
     }
 
+    //Top level function to request data
     public void updateT(View Null){
         bluetoothAdapter.stopLeScan(sensorScanCallback);
         sensorAdapter.updateTemperature();
     }
 
+    //called when scanning for hubs
     public void scanForHub(View Null){
         switch(Build.VERSION.SDK_INT) {
             default:
@@ -198,7 +202,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    //Called when a hub is detected
+    //Called when a hub (with UUID) is detected
     public BluetoothAdapter.LeScanCallback hubScanCallback = new BluetoothAdapter.LeScanCallback(){
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
@@ -207,7 +211,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    //Called when a nearby sensor is detected.
+    //Called when a nearby sensor (With the correct UUID) is detected.
     public BluetoothAdapter.LeScanCallback sensorScanCallback = new BluetoothAdapter.LeScanCallback(){
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
@@ -236,6 +240,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //This is not used, can't be called from broadcast receiver
     private IRemoteServiceCallback blueCallback = new IRemoteServiceCallback(){
         @Override
         public void valueChanged(String action, String address, String returnData) {
@@ -274,7 +279,9 @@ public class MainActivity extends AppCompatActivity {
 
     };
 
+    // IPC functions
     // Handles various events fired by the Service.
+    //
     // ACTION_GATT_CONNECTED: connected to a GATT server.
     // ACTION_GATT_DISCONNECTED: disconnected from a GATT server.
     // ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.
@@ -304,12 +311,24 @@ public class MainActivity extends AppCompatActivity {
             } else if (BluetoothService.HUB_ACTION_GATT_SERVICES_DISCOVERED.equals(action)){
                 BluetoothGatt bg = hubAdapter.getHub(address).getGATT();
                 BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
-                BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-                int properties = bgc.getProperties();
-                if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
-                    bg.setCharacteristicNotification(bgc, true);
+                BluetoothGattCharacteristic bgc;
+                if(bgs !=null) {
+                    bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
+                    if(bgc != null) {
+                        int properties = bgc.getProperties();
+                        if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
+                            bg.setCharacteristicNotification(bgc, true);
+                        }
+                        Log.i(TAG, "begin initialization");
+                        hubAdapter.initialize(address);
+                    }else{//the characteristic is wrong
+                        UUID id = bgs.getUuid();
+                        id.toString();
+                        Toast.makeText(context, "Correct Hub service, bad Characteristic" + id.toString(), Toast.LENGTH_LONG).show();
+                    }
+                }else{//the service is wrong
+                    Toast.makeText(context, "Bad Hub Service", Toast.LENGTH_LONG).show();
                 }
-                hubAdapter.initialize(address);
             } else if (BluetoothService.HUB_ACTION_DATA_AVAILABLE.equals(action)){
                 String value = intent.getStringExtra(BluetoothService.EXTRA_DATA);
                 if(hubAdapter.deliverData(address, value)){
@@ -319,6 +338,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    //Used to filter out intents
     private IntentFilter getGATTFilters(){
         final IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(BluetoothService.SENSOR_ACTION_GATT_CONNECTED);

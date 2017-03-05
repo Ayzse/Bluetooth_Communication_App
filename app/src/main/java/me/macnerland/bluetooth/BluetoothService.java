@@ -178,6 +178,7 @@ public class BluetoothService extends Service {
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             String intentAction;
             if (newState == BluetoothProfile.STATE_CONNECTED) {
+                gatt.discoverServices();
                 intentAction = HUB_ACTION_GATT_CONNECTED;
                 intentAction = intentAction + " " + gatt.getDevice().getAddress();
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {

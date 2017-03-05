@@ -96,7 +96,7 @@ class HubData {
     ""};
 
 
-    private static UUID hubServiceGattUUID =      new UUID(0x0000ece000001000L, 0x800000805f9b34fbL);
+    private static final UUID hubServiceGattUUID = new UUID(0x0000ece000001000L, 0x800000805f9b34fbL);
     private static final UUID hubCharacteristicGattUUID =   new UUID(0x0000ffe100001000L, 0x800000805f9b34fbL);
 
     private boolean initializing;
@@ -116,11 +116,31 @@ class HubData {
 
         isConnected = false;
         initializing = false;
+        //initialize();
+    }
+
+    //dummy constructer
+    HubData(String han, String hpn, String hpf, String hlf, String ht, String hd, String hct, String hch){
+        datastate = HUB_NO_DATA_PENDING;
+        gatt = null;
+
+        hubAlertNumber = han;
+        hubPortalNumber = hpn;
+        hubPortalFreq = hpf;
+        hubLogFreq = hlf;
+        hubTime = ht;
+        hubDate = hd;
+        hubCritTemp = hct;
+        hubCritHum = hch;
+
+        isConnected = false;
+        initializing = false;
     }
 
     //call this to retrieve all of the hub info
     void initialize(){
         initializing = true;
+        Log.i(TAG, "initializing the hub data");
         sendCommand(getAlertPhoneNumber, "");
     }
 
@@ -321,7 +341,8 @@ class HubData {
 
     //recieve the data for this hub. The data will not include the type of information
     //so it is important that the hub keeps track of what type data it is asking for
-    boolean receiveData(String data){
+    boolean receiveData(String dat){
+        String data = dat.trim();
         boolean ret = false;
         int temp = datastate;
         switch(temp){

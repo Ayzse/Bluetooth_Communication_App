@@ -6,6 +6,8 @@ import android.database.DataSetObserver;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListAdapter;
 import android.widget.TextView;
 
@@ -134,6 +136,14 @@ class HubAdapter implements ListAdapter {
         TextView Date = (TextView)v.findViewById(R.id.hubDate);
         TextView critTemp = (TextView)v.findViewById(R.id.critTemp);
         TextView critHum = (TextView)v.findViewById(R.id.critHumid);
+        EditText editLogFreq = (EditText)v.findViewById(R.id.editLogFreq);
+        Button send = (Button)v.findViewById(R.id.sendButton);
+        /*send.setOnClickListener(new View.OnClickListener(){
+            public void onClick(){
+
+            }
+        });*/
+
 
         alertNumber.setText(hubAlertNumber);
         portalNumber.setText(hubPortalNumber);
