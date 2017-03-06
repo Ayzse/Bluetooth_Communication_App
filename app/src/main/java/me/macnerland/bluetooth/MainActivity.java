@@ -1,20 +1,18 @@
 package me.macnerland.bluetooth;
 
-import android.app.ActionBar;
-import android.app.Activity;
+import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
-import android.bluetooth.BluetoothSocket;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
-import android.bluetooth.le.ScanRecord;
+import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
+import android.bluetooth.le.ScanSettings;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -24,27 +22,19 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.IBinder;
-import android.os.Parcel;
 import android.os.ParcelUuid;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.AppCompatImageView;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
-import android.widget.ExpandableListAdapter;
-import android.widget.SimpleExpandableListAdapter;
 import android.widget.Toast;
 
-import java.util.Hashtable;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
-import java.util.jar.Manifest;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -53,10 +43,10 @@ public class MainActivity extends AppCompatActivity {
     private static mPagerAdapter adapter;
     private static Context context;
 
-    private static UUID hubServiceGattUUID =      new UUID(0x0000ece000001000L, 0x800000805f9b34fbL);
+    private static final UUID hubServiceGattUUID =      new UUID(0x0000ece000001000L, 0x800000805f9b34fbL);
     private static UUID[] hubUUID = {hubServiceGattUUID};
-    private static final UUID sensorGattUUID =   new UUID(0x0000feed00001000L, 0x800000805f9b34fbL);
-    private static UUID[] sensorUUID = {sensorGattUUID};
+    private static final UUID sensorServiceGattUUID =   new UUID(0x0000feed00001000L, 0x800000805f9b34fbL);
+    private static UUID[] sensorUUID = {sensorServiceGattUUID};
     private static final UUID defaultServiceGattUUID =   new UUID(0x0000180100001000L, 0x800000805f9b34fbL);
     private static UUID[] defaultUUID = {defaultServiceGattUUID};
     private static final UUID hubCharacteristicGattUUID =   new UUID(0x0000ffe100001000L, 0x800000805f9b34fbL);
@@ -68,13 +58,25 @@ public class MainActivity extends AppCompatActivity {
 
     private static BluetoothManager bluetoothManager;
     private static BluetoothAdapter bluetoothAdapter;
-    private static BluetoothService bluetooth;
+    private static BluetoothService bluetooth;//personal bluetooth handler class
+
+    //used for scanning for devices when API level >= 23
+    private static BluetoothLeScanner bluetoothLeScanner;
+    private static ScanSettings scanSettings;
+    private static List<ScanFilter> HubScanFilter;
+    private static List<ScanFilter> SensorScanFilter;
+    private static ParcelUuid parcelHubService = new ParcelUuid(hubServiceGattUUID);
+    private static ParcelUuid parcelSensorService = new ParcelUuid(sensorServiceGattUUID);
+
+    private AppCompatImageView bluetoothStatus;
 
     //private static final String[] marshmallow_permissions = new String(){android.Manifest.permission.ACCESS_FINE_LOCATION};
+
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.tab_pager);
+        bluetoothStatus = (AppCompatImageView)findViewById(R.id.bluetooth_status);
 
         context = this;
         bluetooth = null;
@@ -85,7 +87,8 @@ public class MainActivity extends AppCompatActivity {
         ViewPager vp = (ViewPager) findViewById(R.id.pager);
         vp.setAdapter(adapter);
 
-        Log.i(TAG, "Version" + Build.VERSION.SDK_INT);
+        //start listening in on intents broadcast by the bluetooth adapter
+        registerReceiver(bluetoothStateReceiver, getBluetoothStateFilter());
 
         //previous builds do not support bluetooth
         switch(Build.VERSION.SDK_INT){
@@ -96,6 +99,22 @@ public class MainActivity extends AppCompatActivity {
             case 22:
                 bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
                 bluetoothAdapter = bluetoothManager.getAdapter();
+
+                if(bluetoothAdapter != null){
+                    int state = bluetoothAdapter.getState();
+                    switch(state){
+                        case BluetoothAdapter.STATE_ON:
+                            Log.i(TAG, "state change detected");
+                            startOrConnectToService();
+                            bluetoothStatus.setVisibility(View.GONE);
+                            break;
+                        case BluetoothAdapter.STATE_TURNING_OFF:
+                            Log.i(TAG, "Turning off");
+                            bluetoothStatus.setVisibility(View.VISIBLE);
+                            break;
+                    }
+                }
+
                 if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
                     Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                     this.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
@@ -112,12 +131,44 @@ public class MainActivity extends AppCompatActivity {
 
             case 23:
             default:
-                ActivityCompat.requestPermissions(this, marshmallow_permissions, 1);
+                beginMarshmallowBluetooth();
                 break;
         }
+
     }
 
-    //used in Marshmellow and above
+    @TargetApi(23)
+    public void beginMarshmallowBluetooth(){
+        /*
+        * TODO: needs some playtesting.
+        * Right now, in order:
+        * Return everything that matches the filters
+        * Connect aggressively,
+        * Connect after one receiving one advertisement match
+        * set delay to 0 to connect as quickly as possible
+        * Balanced scan duty cycle, settle for a lighter power consumption, with moderate speed
+        * */
+        scanSettings = new ScanSettings.Builder()
+                .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
+                .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
+                .setNumOfMatches(ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT)
+                .setReportDelay(0)
+                .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
+                .build();
+        ScanFilter hubsf = new ScanFilter.Builder()
+                .setServiceUuid(parcelHubService).build();
+        ScanFilter sensorsf = new ScanFilter.Builder()
+                .setServiceUuid(parcelSensorService).build();
+
+        HubScanFilter = new ArrayList<>();
+        SensorScanFilter = new ArrayList<>();
+        HubScanFilter.add(hubsf);
+        SensorScanFilter.add(sensorsf);
+
+        ActivityCompat.requestPermissions(this, marshmallow_permissions, 1);
+    }
+
+    //used in Marshmallow and above
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            String permissions[], int[] grantResults){
@@ -126,6 +177,22 @@ public class MainActivity extends AppCompatActivity {
             if(permissions[i].equals(android.Manifest.permission.ACCESS_FINE_LOCATION) && grantResults[i] == PackageManager.PERMISSION_GRANTED) {
                 bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
                 bluetoothAdapter = bluetoothManager.getAdapter();
+
+                if(bluetoothAdapter != null){
+                    int state = bluetoothAdapter.getState();
+                    switch(state){
+                        case BluetoothAdapter.STATE_ON:
+                            Log.i(TAG, "state change detected");
+                            startOrConnectToService();
+                            bluetoothStatus.setVisibility(View.GONE);
+                            break;
+                        case BluetoothAdapter.STATE_TURNING_OFF:
+                            Log.i(TAG, "Turning off");
+                            bluetoothStatus.setVisibility(View.VISIBLE);
+                            break;
+                    }
+                }
+
                 if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
                     Log.e(TAG, "Intent for marshmallow bluetooth");
                     Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
@@ -149,6 +216,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if(requestCode == REQUEST_ENABLE_BT){
             if(resultCode == RESULT_OK){
+                startOrConnectToService();
+                bluetoothStatus.setVisibility(View.GONE);
+                /*
                 Log.i(TAG, "Bluetooth activity successfully enabled");
                 ServiceConnection con = new conn();
                 Intent btIntent = new Intent(this, BluetoothService.class);
@@ -156,11 +226,23 @@ public class MainActivity extends AppCompatActivity {
                 Log.i(TAG, "Binding");
                 bindService(btIntent, con, BIND_AUTO_CREATE);
                 registerReceiver(mGattUpdateReceiver, getGATTFilters());
+                */
             }else {
                 Log.w(TAG, "Bluetooth has not been enabled");
-                //TODO: change the UI somehow to show that the user has not enabled bluetooth
+                bluetoothStatus.setVisibility(View.VISIBLE);
             }
         }
+    }
+
+    //call this when enabling bluetooth (after receiving the BluetoothAdapter)
+    private void startOrConnectToService(){
+        if(bluetooth == null) {
+            ServiceConnection con = new conn();
+            Intent btIntent = new Intent(this, BluetoothService.class);
+            startService(btIntent);
+            bindService(btIntent, con, BIND_AUTO_CREATE);
+        }
+
     }
 
     public static HubAdapter getHubAdapter(){
@@ -187,22 +269,67 @@ public class MainActivity extends AppCompatActivity {
     //called when scanning for hubs
     public void scanForHub(View Null){
         switch(Build.VERSION.SDK_INT) {
+            case 23://marshmallow changes the way to scan for bluetooth devices
+                marshmallowHubScan();
+                break;
             default:
                 bluetoothAdapter.startLeScan(hubUUID, hubScanCallback);
                 break;
         }
     }
 
+    @TargetApi(23)
+    public void marshmallowHubScan(){
+        if(bluetoothLeScanner == null){
+            bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
+        }
+        bluetoothLeScanner.startScan(HubScanFilter, scanSettings, new ScanCallback() {
+                    @Override
+                    @TargetApi(23)
+                    public void onScanResult(int callbackType, ScanResult result) {
+                        super.onScanResult(callbackType, result);
+                        BluetoothDevice device = result.getDevice();
+                        BluetoothGatt hubGatt = device.connectGatt(context, true, bluetooth.hubGattCallback);
+                        hubAdapter.addHub(hubGatt);
+                    }});
+    }
+
     //the view argument allows the method to be called from view resources
+    @SuppressLint("NewApi")
     public void scanForSensor(View Null){
         switch(Build.VERSION.SDK_INT) {
-            default:
+            case 18:
+            case 19:
+            case 20:
+            case 21:
+            case 22:
                 bluetoothAdapter.startLeScan(sensorUUID, sensorScanCallback);
+                break;
+            case 23:
+            default:
+                marshmallowSensorScan();
                 break;
         }
     }
 
-    //Called when a hub (with UUID) is detected
+    @TargetApi(23)
+    private void marshmallowSensorScan(){
+        if(bluetoothLeScanner == null){
+            bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
+        }
+        bluetoothLeScanner.startScan(SensorScanFilter, scanSettings, new ScanCallback() {
+            @Override
+            @TargetApi(23)
+            public void onScanResult(int callbackType, ScanResult result) {
+                super.onScanResult(callbackType, result);
+                BluetoothDevice device = result.getDevice();
+                BluetoothGatt sensorGatt = device.connectGatt(context, true, bluetooth.sensorGattCallback);
+                sensorAdapter.addSensor(sensorGatt, context);
+            }});
+
+    }
+
+    //Called when a hub (with UUID) is detected, only used beneath marshmallow
     public BluetoothAdapter.LeScanCallback hubScanCallback = new BluetoothAdapter.LeScanCallback(){
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
@@ -226,7 +353,6 @@ public class MainActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName name, IBinder service){
             boolean firstConnect = bluetooth == null;
             bluetooth = ((BluetoothService.LocalBinder) service).getService();
-            bluetooth.registerBluetoothCallback(blueCallback);
             if(firstConnect){
                 scanForHub(null);
                 scanForSensor(null);
@@ -241,43 +367,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //This is not used, can't be called from broadcast receiver
-    private IRemoteServiceCallback blueCallback = new IRemoteServiceCallback(){
-        @Override
-        public void valueChanged(String action, String address, String returnData) {
-            if (BluetoothService.SENSOR_ACTION_GATT_CONNECTED.equals(action)) {
-                sensorAdapter.connectSensor(address);
-            } else if (BluetoothService.SENSOR_ACTION_GATT_DISCONNECTED.equals(action)) {
-                sensorAdapter.disconnectSensor(address);
-            } else if (BluetoothService.SENSOR_ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
-                Log.d(TAG, "gatt services discovered");
-                sensorAdapter.updateNotification(address);
-            } else if (BluetoothService.SENSOR_ACTION_DATA_AVAILABLE.equals(action)) {
-                String data = returnData;
-                if("Invalid Command\n".equals(data)){
-                    Log.w(TAG, "Invalid Command");
-                }else {
-                    sensorAdapter.deliverData(address, data);
-                    sensorAdapter.notifyDSO();
-                }
-            } else if (BluetoothService.HUB_ACTION_GATT_SERVICES_DISCOVERED.equals(action)){
-                BluetoothGatt bg = hubAdapter.getHub(address).getGATT();
-                BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
-                BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
-                int properties = bgc.getProperties();
-                if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
-                    bg.setCharacteristicNotification(bgc, true);
-                }
-
-                //hubAdapter.getHub(address).sendCommand(HubData.getAlertPhoneNumber, "");
-                hubAdapter.initialize(address);
-            } else if (BluetoothService.HUB_ACTION_DATA_AVAILABLE.equals(action)){
-                if(hubAdapter.deliverData(address, returnData)){
-                    hubAdapter.notifyDSO();
-                }
-            }
-        }
-
-    };
 
     // IPC functions
     // Handles various events fired by the Service.
@@ -338,6 +427,34 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private BroadcastReceiver bluetoothStateReceiver = new BroadcastReceiver(){
+        @Override
+        public void onReceive(Context context, Intent intent){
+            final String action = intent.getAction();
+            if(action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+                final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, 0);
+                switch(state) {
+                    case BluetoothAdapter.STATE_ON:
+                        Log.i(TAG, "state change detected");
+                        startOrConnectToService();
+                        bluetoothStatus.setVisibility(View.GONE);
+                        break;
+                    case BluetoothAdapter.STATE_TURNING_OFF:
+                        Log.i(TAG, "Turning off");
+                        bluetoothStatus.setVisibility(View.VISIBLE);
+                        break;
+                }
+
+            }
+        }
+    };
+
+    private IntentFilter getBluetoothStateFilter(){
+        final IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+        return intentFilter;
+    }
+
     //Used to filter out intents
     private IntentFilter getGATTFilters(){
         final IntentFilter intentFilter = new IntentFilter();
@@ -352,7 +469,7 @@ public class MainActivity extends AppCompatActivity {
         return intentFilter;
     }
 
-    //android activity lifecycle ovverrides
+    //android activity lifecycle overrides
     @Override
     public void onPause(){
         super.onPause();

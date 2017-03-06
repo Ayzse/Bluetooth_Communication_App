@@ -5,18 +5,25 @@
     android:layout_height="match_parent"
     tools:context="me.macnerland.bluetooth.MainActivity">
 
+    <android.support.v7.widget.AppCompatImageView
+        android:layout_width="match_parent"
+        android:layout_height="25dp"
+        android:id="@+id/bluetooth_status"
+        android:visibility="gone"/>
+
 <android.support.v4.view.ViewPager
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/pager"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:layout_below="@+id/bluetooth_status">
 
     <android.support.v4.view.PagerTitleStrip
         android:id="@+id/pager_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
-        android:background="#33b5e5"
+        android:background="@color/PHLbrown"
         android:textColor="#fff"
         android:paddingTop="4dp"
         android:paddingBottom="4dp"/>
