@@ -6,9 +6,12 @@ import android.database.DataSetObserver;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListAdapter;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import org.w3c.dom.Text;
@@ -20,7 +23,7 @@ import java.util.Vector;
  * Created by Doug on 8/15/2016.
  * This contains a list of all the connected hubs
  */
-class HubAdapter implements ListAdapter {
+class HubAdapter implements HubInterface {
 
     private Hashtable<String, Integer> hubIndex;
     private Vector<HubData> hubs;
@@ -32,6 +35,10 @@ class HubAdapter implements ListAdapter {
         hubs = new Vector<>();
         DSO = new Vector<>();
         context = c;
+
+        HubData dummyHub = new HubData("630-217-6714", "555-925-7878", "8", "1", "5:09", "4/22/17", "100", "80");
+        hubs.add(dummyHub);
+        hubIndex.put("helloworld", hubs.size() - 1);
     }
 
     void notifyDSO(){
@@ -137,13 +144,6 @@ class HubAdapter implements ListAdapter {
         TextView critTemp = (TextView)v.findViewById(R.id.critTemp);
         TextView critHum = (TextView)v.findViewById(R.id.critHumid);
         EditText editLogFreq = (EditText)v.findViewById(R.id.editLogFreq);
-        Button send = (Button)v.findViewById(R.id.sendButton);
-        /*send.setOnClickListener(new View.OnClickListener(){
-            public void onClick(){
-
-            }
-        });*/
-
 
         alertNumber.setText(hubAlertNumber);
         portalNumber.setText(hubPortalNumber);
@@ -153,6 +153,23 @@ class HubAdapter implements ListAdapter {
         Date.setText(hubDate);
         critTemp.setText(hubCritTemp);
         critHum.setText(hubCritHum);
+
+        Button send = (Button)v.findViewById(R.id.sendButton);
+
+
+        Spinner spinner = (Spinner)v.findViewById(R.id.hub_spinner);
+
+        // Create an ArrayAdapter using the string array and a default spinner layout
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(context,
+                R.array.hub_commands, android.R.layout.simple_spinner_item);
+        // Specify the layout to use when the list of choices appears
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        // Apply the adapter to the spinner
+        spinner.setAdapter(adapter);
+
+        //spinner.
+
+
 
         return v;
     }
@@ -170,5 +187,16 @@ class HubAdapter implements ListAdapter {
     @Override
     public boolean isEmpty() {
         return hubs.isEmpty();
+    }
+
+    //on item selected
+    public void onItemSelected(AdapterView<?> parent, View view,
+                               int pos, long id) {
+        // An item was selected. You can retrieve the selected item using
+        // parent.getItemAtPosition(pos)
+    }
+
+    public void onNothingSelected(AdapterView<?> parent) {
+        // Another interface callback
     }
 }

@@ -1,12 +1,22 @@
 <resources>
-    <string name="app_name">Bluetooth</string>
+    <string name="app_name">Grain Meter</string>
     <string name="send">Send</string>
     <string name="save">Save</string>
     <string name="delete">Delete</string>
     <string name="command">Command</string>
+    <string name="hub_button">Send</string>
     <string-array
         name="page_titles">
         <item>Hub</item>
         <item>Sensors</item>
+    </string-array>
+    <string-array name="hub_commands">
+        <item>Set portal number</item>
+        <item>Set portal frequency</item>
+        <item>Set logging frequency</item>
+        <item>Set time</item>
+        <item>Set date</item>
+        <item>Set Critical Temperature</item>
+        <item>Set Critical Humidity</item>
     </string-array>
 </resources>

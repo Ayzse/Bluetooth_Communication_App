@@ -45,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final UUID hubServiceGattUUID =      new UUID(0x0000ece000001000L, 0x800000805f9b34fbL);
     private static UUID[] hubUUID = {hubServiceGattUUID};
-    private static final UUID sensorServiceGattUUID =   new UUID(0x0000feed00001000L, 0x800000805f9b34fbL);
+    private static final UUID sensorServiceGattUUID =   new UUID(0x0000ece100001000L, 0x800000805f9b34fbL);
     private static UUID[] sensorUUID = {sensorServiceGattUUID};
     private static final UUID defaultServiceGattUUID =   new UUID(0x0000180100001000L, 0x800000805f9b34fbL);
     private static UUID[] defaultUUID = {defaultServiceGattUUID};
@@ -241,6 +241,7 @@ public class MainActivity extends AppCompatActivity {
             Intent btIntent = new Intent(this, BluetoothService.class);
             startService(btIntent);
             bindService(btIntent, con, BIND_AUTO_CREATE);
+            registerReceiver(mGattUpdateReceiver, getGATTFilters());
         }
 
     }

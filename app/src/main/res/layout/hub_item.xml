@@ -48,7 +48,14 @@
         android:id="@+id/editLogFreq"/>
     <Button
         android:layout_width="wrap_content"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/hub_button"
         android:id="@+id/sendButton"/>
+    <Spinner
+        android:id="@+id/hub_spinner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+
+    </Spinner>
 
 </LinearLayout>
