@@ -1,5 +1,7 @@
 package me.macnerland.bluetooth;
 
+import android.content.DialogInterface;
+import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListAdapter;
 
@@ -8,6 +10,6 @@ import android.widget.ListAdapter;
  * This is the interface for the hub, this combines interfaces
  */
 
-interface HubInterface extends AdapterView.OnItemSelectedListener, ListAdapter {
+interface HubInterface extends AdapterView.OnItemSelectedListener, View.OnClickListener {
 
 }

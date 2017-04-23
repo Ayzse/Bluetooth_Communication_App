@@ -3,6 +3,7 @@ package me.macnerland.bluetooth;
 import android.bluetooth.BluetoothGatt;
 import android.content.Context;
 import android.database.DataSetObserver;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,12 +24,13 @@ import java.util.Vector;
  * Created by Doug on 8/15/2016.
  * This contains a list of all the connected hubs
  */
-class HubAdapter implements HubInterface {
+class HubAdapter implements ListAdapter {
 
     private Hashtable<String, Integer> hubIndex;
     private Vector<HubData> hubs;
     private Vector<DataSetObserver> DSO;
     private Context context;
+    private static final String TAG = "HubAdapter";
 
     HubAdapter(Context c){
         hubIndex = new Hashtable<>();
@@ -143,7 +145,6 @@ class HubAdapter implements HubInterface {
         TextView Date = (TextView)v.findViewById(R.id.hubDate);
         TextView critTemp = (TextView)v.findViewById(R.id.critTemp);
         TextView critHum = (TextView)v.findViewById(R.id.critHumid);
-        EditText editLogFreq = (EditText)v.findViewById(R.id.editLogFreq);
 
         alertNumber.setText(hubAlertNumber);
         portalNumber.setText(hubPortalNumber);
@@ -154,9 +155,6 @@ class HubAdapter implements HubInterface {
         critTemp.setText(hubCritTemp);
         critHum.setText(hubCritHum);
 
-        Button send = (Button)v.findViewById(R.id.sendButton);
-
-
         Spinner spinner = (Spinner)v.findViewById(R.id.hub_spinner);
 
         // Create an ArrayAdapter using the string array and a default spinner layout
@@ -166,10 +164,11 @@ class HubAdapter implements HubInterface {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         // Apply the adapter to the spinner
         spinner.setAdapter(adapter);
+        spinner.setOnItemSelectedListener(hub);
 
         //spinner.
-
-
+        Button send = (Button)v.findViewById(R.id.sendButton);
+        send.setOnClickListener(hub);
 
         return v;
     }
@@ -189,14 +188,4 @@ class HubAdapter implements HubInterface {
         return hubs.isEmpty();
     }
 
-    //on item selected
-    public void onItemSelected(AdapterView<?> parent, View view,
-                               int pos, long id) {
-        // An item was selected. You can retrieve the selected item using
-        // parent.getItemAtPosition(pos)
-    }
-
-    public void onNothingSelected(AdapterView<?> parent) {
-        // Another interface callback
-    }
 }

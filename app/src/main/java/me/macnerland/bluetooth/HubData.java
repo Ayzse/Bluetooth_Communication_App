@@ -4,6 +4,10 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.util.Log;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 
 import java.util.UUID;
 
@@ -11,7 +15,7 @@ import java.util.UUID;
  * Created by Doug on 8/15/2016.
  * This represents a hub, and provides the underlying interface and data.
  */
-class HubData {
+class HubData implements HubInterface{
     private static final String TAG = "HubData";
 
     private BluetoothGatt gatt;
@@ -26,6 +30,7 @@ class HubData {
     private String hubCritHum;
 
     private boolean isConnected;
+    private int selected_command;
 
     private static final int HUB_NO_DATA_PENDING = 0;
     private static final int HUB_ALERT_PHONE_NUMBER_PENDING = 1;
@@ -95,6 +100,10 @@ class HubData {
     "26 %s\n",
     ""};
 
+    //this array must be in order.
+    private int[] display_to_command = {setPortalPhoneNumber, setPortalNotificationFreq, setLoggingFrequency,
+    setHubTime, setHubDate, setCriticalTemperature, setCriticalHumidity};
+
 
     private static final UUID hubServiceGattUUID = new UUID(0x0000ece000001000L, 0x800000805f9b34fbL);
     private static final UUID hubCharacteristicGattUUID =   new UUID(0x0000ffe100001000L, 0x800000805f9b34fbL);
@@ -104,6 +113,7 @@ class HubData {
     HubData(BluetoothGatt bg){
         datastate = HUB_NO_DATA_PENDING;
         gatt = bg;
+        selected_command = 0;
 
         hubAlertNumber = "No Hub Connected";
         hubPortalNumber = "No Hub Connected";
@@ -123,6 +133,7 @@ class HubData {
     HubData(String han, String hpn, String hpf, String hlf, String ht, String hd, String hct, String hch){
         datastate = HUB_NO_DATA_PENDING;
         gatt = null;
+        selected_command = 0;
 
         hubAlertNumber = han;
         hubPortalNumber = hpn;
@@ -220,6 +231,10 @@ class HubData {
 
     public String getCriticalHumidity(){
         return hubCritHum;
+    }
+
+    void send(String parameter){
+        sendCommand(display_to_command[selected_command], parameter);
     }
 
     //Issue a command to the hub. command must be one of the enumerated commands.
@@ -409,5 +424,29 @@ class HubData {
         }
         return ret;
     }
-    
+
+    //on item selected
+    public void onItemSelected(AdapterView<?> parent, View view,
+                               int pos, long id) {
+        // An item was selected. You can retrieve the selected item using
+        // parent.getItemAtPosition(pos)
+
+        String command = (String)parent.getItemAtPosition(pos);
+        Log.v(TAG, "Item selected:" + command);
+
+    }
+
+    public void onNothingSelected(AdapterView<?> parent) {
+        // Another interface callback
+        Log.v(TAG, "Failure to select anything");
+
+    }
+
+    public void onClick(View v){
+        LinearLayout o = (LinearLayout)v.getParent();
+        EditText et = (EditText)o.findViewById(R.id.command);
+        String command = et.getText().toString();
+        Log.e(TAG, "Sending command" + command);
+        send(command);
+    }
 }
