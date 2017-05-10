@@ -5,6 +5,8 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.content.Context;
 import android.database.DataSetObserver;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,7 +39,7 @@ class SensorAdapter implements ExpandableListAdapter {
     private final Context context;
 
 
-    private static final UUID sensorServiceGattUUID = UUID.fromString("0000feed-0000-1000-8000-00805f9b34fb");
+    //private static final UUID sensorServiceGattUUID = UUID.fromString("0000ece1-0000-1000-8000-00805f9b34fb");
     private static final UUID sensorCharacteristicUUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
 
     //these bytes are used to command the sensor to return values
@@ -122,7 +124,7 @@ class SensorAdapter implements ExpandableListAdapter {
     void updateNotification(String address){
         BluetoothGatt bg = sensors.get(sensorIndex.get(address)).getGATT();
         if(bg != null) {
-            BluetoothGattService bgs = bg.getService(sensorServiceGattUUID);
+            BluetoothGattService bgs = bg.getService(Constant.sensorServiceGattUUID);
             if(bgs != null) {
                 BluetoothGattCharacteristic bgc = bgs.getCharacteristic(sensorCharacteristicUUID);
                 if (bgc != null){
@@ -141,7 +143,7 @@ class SensorAdapter implements ExpandableListAdapter {
             for (SensorData con : sensors) {
                 if (con.isConnected() && con.dataState == SensorData.NO_DATA_PENDING) {
                     BluetoothGatt gatt = con.getGATT();
-                    BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                    BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
                     if (bs == null) {
                         //services have not ben discovered
                         break;
@@ -163,7 +165,7 @@ class SensorAdapter implements ExpandableListAdapter {
             for (SensorData con : sensors) {
                 if (con.isConnected()) {
                     BluetoothGatt gatt = con.getGATT();
-                    BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                    BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
                     if(bs == null) break;
                     BluetoothGattCharacteristic bgc = bs.getCharacteristic(sensorCharacteristicUUID);
                     if(bgc == null) break;
@@ -173,11 +175,17 @@ class SensorAdapter implements ExpandableListAdapter {
             }
     }
 
+    void updateHumidity(String sensor){
+        int index = sensorIndex.get(sensor);
+        SensorData sd = sensors.get(index);
+        BluetoothGatt gatt = sd.getGATT();
+    }
+
     void updateHumidity(){
         for (SensorData con : sensors) {
             if (con.isConnected() && con.dataState == SensorData.NO_DATA_PENDING) {
                 BluetoothGatt gatt = con.getGATT();
-                BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
                 if (bs == null) {
                     //services have not ben discovered
                     break;
@@ -196,7 +204,7 @@ class SensorAdapter implements ExpandableListAdapter {
         for (SensorData con : sensors) {
             if (con.isConnected()) {
                 BluetoothGatt gatt = con.getGATT();
-                BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
                 if (bs == null) break;
                 BluetoothGattCharacteristic bgc =
                         bs.getCharacteristic(sensorCharacteristicUUID);
@@ -210,7 +218,7 @@ class SensorAdapter implements ExpandableListAdapter {
         for (SensorData con : sensors) {
             if (con.isConnected() && con.dataState == SensorData.NO_DATA_PENDING) {
                 BluetoothGatt gatt = con.getGATT();
-                BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
                 if (bs == null) {
                     //services have not ben discovered
                     break;
@@ -229,7 +237,7 @@ class SensorAdapter implements ExpandableListAdapter {
         for (SensorData con : sensors) {
             if (con.isConnected()) {
                 BluetoothGatt gatt = con.getGATT();
-                BluetoothGattService bs = gatt.getService(sensorServiceGattUUID);
+                BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
                 if (bs == null) break;
                 BluetoothGattCharacteristic bgc =
                         bs.getCharacteristic(sensorCharacteristicUUID);
@@ -376,6 +384,38 @@ class SensorAdapter implements ExpandableListAdapter {
         for(SensorData sd : sensors){
             sd.onResume();
         }
+    }
+
+    public int describeContents(){
+        return 0;
+    }
+
+    public void writeToParcel(Parcel out, int flags){
+
+        for(SensorData sd : sensors){
+            //parcel sensor data and write it into out
+        }
+
+    }
+
+    public static final Parcelable.Creator<SensorAdapter> CREATOR
+            = new Parcelable.Creator<SensorAdapter>(){
+        public SensorAdapter createFromParcel(Parcel in){
+            return null;
+        }
+
+        public SensorAdapter[] newArray(int size){
+            return new SensorAdapter[size];
+        }
+    };
+
+    private SensorAdapter(Parcel in){
+        DSO = new Vector<>();
+        sensorIndex = new Hashtable<>();
+        sensors = new Vector<SensorData>();
+        context = MainActivity.getContext();
+
+
     }
 
 }

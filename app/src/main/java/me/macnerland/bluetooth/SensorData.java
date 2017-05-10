@@ -5,6 +5,8 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.content.Context;
 import android.graphics.Color;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.support.v4.content.res.ResourcesCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -25,6 +27,8 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.Hashtable;
+import java.util.Vector;
 
 /**
  * Provides the data and interface for a sensor
@@ -33,7 +37,7 @@ import java.util.GregorianCalendar;
  */
 class SensorData{
     private static final String TAG = "SensorData";
-    private static final int numberChildren = 1;
+    private static final int numberChildren = 2;
 
     private final Context context;
     private BluetoothGatt bluetooth;
@@ -408,10 +412,13 @@ class SensorData{
 
         LayoutInflater inflater = (LayoutInflater) context
                 .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        v = inflater.inflate(R.layout.sensor_graph, parent, false);
 
         switch(child){
             case 0:
+                v = inflater.inflate(R.layout.sensor_button, parent, false);
+                return v;
+            case 1:
+                v = inflater.inflate(R.layout.sensor_graph, parent, false);
                 temperatureSeries.getHighestValueX();
                 humiditySeries.getHighestValueX();
 
@@ -465,6 +472,36 @@ class SensorData{
                 }
             }
         }
+    }
+
+
+    public int describeContents(){
+        return 0;
+    }
+
+    public void writeToParcel(Parcel out, int flags){
+
+
+
+    }
+
+    public static final Parcelable.Creator<SensorAdapter> CREATOR
+            = new Parcelable.Creator<SensorAdapter>(){
+        public SensorAdapter createFromParcel(Parcel in){
+            return null;
+        }
+
+        public SensorAdapter[] newArray(int size){
+            return new SensorAdapter[size];
+        }
+    };
+
+    private SensorData(Parcel in){
+        context = MainActivity.getContext();
+
+        name = in.readString();
+        address = in.readString();
+
     }
 
 }

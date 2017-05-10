@@ -5,6 +5,8 @@
     <string name="delete">Delete</string>
     <string name="command">Command</string>
     <string name="hub_button">Send</string>
+    <string name="temp">Get Temperature</string>
+    <string name="humid">Get Humidity</string>
     <string-array
         name="page_titles">
         <item>Hub</item>

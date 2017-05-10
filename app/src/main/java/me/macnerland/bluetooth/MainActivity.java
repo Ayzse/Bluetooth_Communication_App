@@ -43,13 +43,7 @@ public class MainActivity extends AppCompatActivity {
     private static mPagerAdapter adapter;
     private static Context context;
 
-    private static final UUID hubServiceGattUUID =      new UUID(0x0000ece000001000L, 0x800000805f9b34fbL);
-    private static UUID[] hubUUID = {hubServiceGattUUID};
-    private static final UUID sensorServiceGattUUID =   new UUID(0x0000ece100001000L, 0x800000805f9b34fbL);
-    private static UUID[] sensorUUID = {sensorServiceGattUUID};
-    private static final UUID defaultServiceGattUUID =   new UUID(0x0000180100001000L, 0x800000805f9b34fbL);
-    private static UUID[] defaultUUID = {defaultServiceGattUUID};
-    private static final UUID hubCharacteristicGattUUID =   new UUID(0x0000ffe100001000L, 0x800000805f9b34fbL);
+
     private static final String[] marshmallow_permissions = {BluetoothService.PERMISSION, android.Manifest.permission.ACCESS_FINE_LOCATION,android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.READ_EXTERNAL_STORAGE,
             android.Manifest.permission.WRITE_EXTERNAL_STORAGE, android.Manifest.permission.BLUETOOTH};
 
@@ -65,12 +59,17 @@ public class MainActivity extends AppCompatActivity {
     private static ScanSettings scanSettings;
     private static List<ScanFilter> HubScanFilter;
     private static List<ScanFilter> SensorScanFilter;
-    private static ParcelUuid parcelHubService = new ParcelUuid(hubServiceGattUUID);
-    private static ParcelUuid parcelSensorService = new ParcelUuid(sensorServiceGattUUID);
+    private static ParcelUuid parcelHubService = new ParcelUuid(Constant.hubServiceGattUUID);
+    private static ParcelUuid parcelSensorService = new ParcelUuid(Constant.sensorServiceGattUUID);
 
     private AppCompatImageView bluetoothStatus;
 
     //private static final String[] marshmallow_permissions = new String(){android.Manifest.permission.ACCESS_FINE_LOCATION};
+
+    private static final String sensorAdapterSISkey = "SENSOR_ADAPT";
+    private static final String hubAdapterSISkey = "HUB_ADAPT";
+    private static final String pagerAdapterSISkey = "PAGER_ADAPT";
+    private static final String bluetoothSISkey = "BLUETOOTH";
 
 
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,11 +77,20 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.tab_pager);
         bluetoothStatus = (AppCompatImageView)findViewById(R.id.bluetooth_status);
 
+        //This is critical to set here, future object instances may call getContext()
         context = this;
-        bluetooth = null;
-        sensorAdapter = new SensorAdapter(context);
-        hubAdapter = new HubAdapter(context);
-        adapter = new mPagerAdapter(this.getSupportFragmentManager(), getResources());
+
+        if(savedInstanceState == null) {
+            bluetooth = null;
+
+            sensorAdapter = new SensorAdapter(context);
+            hubAdapter = new HubAdapter(context);
+            adapter = new mPagerAdapter(this.getSupportFragmentManager(), getResources());
+        }else{//the savedInstanceState contains data
+            /*if(savedInstanceState.containsKey(sensorAdapterSISkey)){
+                sensorAdapter = savedInstanceState.getParcelable(sensorAdapterSISkey);
+            }*/
+        }
 
         ViewPager vp = (ViewPager) findViewById(R.id.pager);
         vp.setAdapter(adapter);
@@ -95,9 +103,6 @@ public class MainActivity extends AppCompatActivity {
             case 18:
             case 19:
             case 20:
-            case 21:
-            case 22:
-            default://redefine the default case to use lower level apis
                 bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
                 bluetoothAdapter = bluetoothManager.getAdapter();
 
@@ -128,18 +133,25 @@ public class MainActivity extends AppCompatActivity {
                 }
                 sensorAdapter.enableWrite();
                 break;
-/* comment out the api upgrades for now
 
+            case 21:
+            case 22:
+                initLollipopBluetooth();
             case 23:
             default:
-                beginMarshmallowBluetooth();
-                break;*/
+                initMarshmallowBluetooth();
+                break;
         }
 
     }
 
+    @TargetApi(21)
+    public void initLollipopBluetooth(){
+        //TODO: create a List<ScanFileter> and begin bluetooth the lollipop way
+    }
+
     @TargetApi(23)
-    public void beginMarshmallowBluetooth(){
+    public void initMarshmallowBluetooth(){
         /*
         * TODO: needs some playtesting.
         * Right now, in order:
@@ -219,15 +231,6 @@ public class MainActivity extends AppCompatActivity {
             if(resultCode == RESULT_OK){
                 startOrConnectToService();
                 bluetoothStatus.setVisibility(View.GONE);
-                /*
-                Log.i(TAG, "Bluetooth activity successfully enabled");
-                ServiceConnection con = new conn();
-                Intent btIntent = new Intent(this, BluetoothService.class);
-                startService(btIntent);
-                Log.i(TAG, "Binding");
-                bindService(btIntent, con, BIND_AUTO_CREATE);
-                registerReceiver(mGattUpdateReceiver, getGATTFilters());
-                */
             }else {
                 Log.w(TAG, "Bluetooth has not been enabled");
                 bluetoothStatus.setVisibility(View.VISIBLE);
@@ -247,6 +250,10 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    static Context getContext(){
+        return context;
+    }
+
     public static HubAdapter getHubAdapter(){
         return hubAdapter;
     }
@@ -257,26 +264,71 @@ public class MainActivity extends AppCompatActivity {
 
     //Method callable from view
     public void updateH(View Null){
-        bluetoothAdapter.stopLeScan(sensorScanCallback);
+        if(Build.VERSION.SDK_INT < 23) {
+            bluetoothAdapter.stopLeScan(sensorScanCallback);
+        }else{
+            Log.i(TAG, "Scan stopping");
+            stopscan();
+        }
+
         sensorAdapter.updateHumidity();
         //sensorAdapter.updateBoth();
     }
 
+    @TargetApi(23)
+    void stopscan(){
+        if(bluetoothLeScanner != null){
+            bluetoothLeScanner.stopScan(new ScanCallback() {
+                @Override
+                @TargetApi(23)
+                public void onScanResult(int callbackType, ScanResult result) {
+                    super.onScanResult(callbackType, result);
+                    Log.i(TAG, "Scan stopped");
+                }
+
+                @Override
+                public void onBatchScanResults(List<ScanResult> results){
+                    super.onBatchScanResults(results);
+                    Log.i(TAG, "Scan delivered");
+                }
+            });
+        }
+    }
+
     //Top level function to request data
     public void updateT(View Null){
-        bluetoothAdapter.stopLeScan(sensorScanCallback);
+        if(Build.VERSION.SDK_INT < 23) {
+            bluetoothAdapter.stopLeScan(sensorScanCallback);
+        }else{
+            stopscan();
+        }
         sensorAdapter.updateTemperature();
+    }
+
+    void lollipopHubScan(){
+        //TODO implement this
     }
 
     //called when scanning for hubs
     public void scanForHub(View Null){
         switch(Build.VERSION.SDK_INT) {
+            case 18:
+            case 19:
+            case 20:
+                bluetoothAdapter.startLeScan(Constant.hubUUID, hubScanCallback);
+                break;
+            case 21:
+            case 22:
+                bluetoothAdapter.startLeScan(Constant.hubUUID, hubScanCallback);
+                //lollipopHubScan();
+                break;
             case 23://marshmallow changes the way to scan for bluetooth devices
                 //marshmallowHubScan();
-                bluetoothAdapter.startLeScan(hubUUID, hubScanCallback);
+                bluetoothAdapter.startLeScan(Constant.hubUUID, hubScanCallback);
+                //bluetoothAdapter.startLeScan(Constant.hubUUID, hubScanCallback);
                 break;
             default:
-                bluetoothAdapter.startLeScan(hubUUID, hubScanCallback);
+
                 break;
         }
     }
@@ -304,13 +356,15 @@ public class MainActivity extends AppCompatActivity {
             case 18:
             case 19:
             case 20:
+                bluetoothAdapter.startLeScan(Constant.sensorUUID, sensorScanCallback);
+                break;
             case 21:
             case 22:
-                bluetoothAdapter.startLeScan(sensorUUID, sensorScanCallback);
+                bluetoothAdapter.startLeScan(Constant.sensorUUID, sensorScanCallback);
                 break;
             case 23:
             default:
-                bluetoothAdapter.startLeScan(sensorUUID, sensorScanCallback);
+                bluetoothAdapter.startLeScan(Constant.sensorUUID, sensorScanCallback);
                 //marshmallowSensorScan();
                 break;
         }
@@ -403,10 +457,10 @@ public class MainActivity extends AppCompatActivity {
                 }
             } else if (BluetoothService.HUB_ACTION_GATT_SERVICES_DISCOVERED.equals(action)){
                 BluetoothGatt bg = hubAdapter.getHub(address).getGATT();
-                BluetoothGattService bgs = bg.getService(hubServiceGattUUID);
+                BluetoothGattService bgs = bg.getService(Constant.hubServiceGattUUID);
                 BluetoothGattCharacteristic bgc;
                 if(bgs !=null) {
-                    bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
+                    bgc = bgs.getCharacteristic(Constant.hubCharacteristicGattUUID);
                     if(bgc != null) {
                         int properties = bgc.getProperties();
                         if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
@@ -484,5 +538,11 @@ public class MainActivity extends AppCompatActivity {
     public void onResume(){
         super.onResume();
         sensorAdapter.onResume();
+    }
+
+    @Override
+    public void onDestroy(){
+        //parcel currently held data
+        super.onDestroy();
     }
 }

@@ -432,7 +432,8 @@ class HubData implements HubInterface{
         // parent.getItemAtPosition(pos)
 
         String command = (String)parent.getItemAtPosition(pos);
-        Log.v(TAG, "Item selected:" + command);
+        Log.v(TAG, "Item selected: " + command);
+        selected_command = pos;
 
     }
 
