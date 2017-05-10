@@ -97,6 +97,7 @@ public class MainActivity extends AppCompatActivity {
             case 20:
             case 21:
             case 22:
+            default://redefine the default case to use lower level apis
                 bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
                 bluetoothAdapter = bluetoothManager.getAdapter();
 
@@ -127,12 +128,12 @@ public class MainActivity extends AppCompatActivity {
                 }
                 sensorAdapter.enableWrite();
                 break;
-
+/* comment out the api upgrades for now
 
             case 23:
             default:
                 beginMarshmallowBluetooth();
-                break;
+                break;*/
         }
 
     }
@@ -271,7 +272,8 @@ public class MainActivity extends AppCompatActivity {
     public void scanForHub(View Null){
         switch(Build.VERSION.SDK_INT) {
             case 23://marshmallow changes the way to scan for bluetooth devices
-                marshmallowHubScan();
+                //marshmallowHubScan();
+                bluetoothAdapter.startLeScan(hubUUID, hubScanCallback);
                 break;
             default:
                 bluetoothAdapter.startLeScan(hubUUID, hubScanCallback);
@@ -308,7 +310,8 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case 23:
             default:
-                marshmallowSensorScan();
+                bluetoothAdapter.startLeScan(sensorUUID, sensorScanCallback);
+                //marshmallowSensorScan();
                 break;
         }
     }
