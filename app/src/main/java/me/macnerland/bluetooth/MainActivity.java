@@ -33,8 +33,10 @@ import android.view.View;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.UUID;
+import java.util.Vector;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -71,10 +73,19 @@ public class MainActivity extends AppCompatActivity {
     private static final String pagerAdapterSISkey = "PAGER_ADAPT";
     private static final String bluetoothSISkey = "BLUETOOTH";
 
+    private static Hashtable<View, String> view_to_address;
+
+    private Vector<BluetoothService> callbacks;
+    private Vector<BluetoothDevice> devices;
+    private Vector<Boolean> device_type;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.tab_pager);
+        view_to_address = new Hashtable<>();
+        devices = new Vector<>();
+        device_type = new Vector<>();
+        callbacks = new Vector<>();
         bluetoothStatus = (AppCompatImageView)findViewById(R.id.bluetooth_status);
 
         //This is critical to set here, future object instances may call getContext()
@@ -125,10 +136,14 @@ public class MainActivity extends AppCompatActivity {
                     Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                     this.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
                 }else {
-                    ServiceConnection con = new conn();
-                    Intent btIntent = new Intent(this, BluetoothService.class);
-                    startService(btIntent);
-                    bindService(btIntent, con, BIND_AUTO_CREATE);
+                    boolean firstConnect = false;
+                    if(callbacks.isEmpty()){
+                        firstConnect = true;
+                    }
+                    if(firstConnect){
+                        scanForHub(null);
+                        scanForSensor(null);
+                    }
                     registerReceiver(mGattUpdateReceiver, getGATTFilters());
                 }
                 sensorAdapter.enableWrite();
@@ -143,6 +158,22 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
 
+    }
+
+    static void register_view_to_address(View v, String a){
+        view_to_address.put(v, a);
+    }
+
+    public void specific_temp(View button){
+        View target = (View)button.getParent();
+        String address = view_to_address.get(target);
+        sensorAdapter.updateTemperature(address);
+    }
+
+    public void specific_humid(View button){
+        View target = (View)button.getParent();
+        String address = view_to_address.get(target);
+        sensorAdapter.updateHumidity(address);
     }
 
     @TargetApi(21)
@@ -211,10 +242,6 @@ public class MainActivity extends AppCompatActivity {
                     Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                     this.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
                 }else {
-                    ServiceConnection con = new conn();
-                    Intent btIntent = new Intent(this, BluetoothService.class);
-                    startService(btIntent);
-                    bindService(btIntent, con, BIND_AUTO_CREATE);
                     registerReceiver(mGattUpdateReceiver, getGATTFilters());
                 }
 
@@ -240,14 +267,15 @@ public class MainActivity extends AppCompatActivity {
 
     //call this when enabling bluetooth (after receiving the BluetoothAdapter)
     private void startOrConnectToService(){
-        if(bluetooth == null) {
-            ServiceConnection con = new conn();
-            Intent btIntent = new Intent(this, BluetoothService.class);
-            startService(btIntent);
-            bindService(btIntent, con, BIND_AUTO_CREATE);
-            registerReceiver(mGattUpdateReceiver, getGATTFilters());
+        boolean firstConnect = false;
+        if(callbacks.isEmpty()){
+            firstConnect = true;
         }
-
+        if(firstConnect){
+            scanForHub(null);
+            scanForSensor(null);
+        }
+        registerReceiver(mGattUpdateReceiver, getGATTFilters());
     }
 
     static Context getContext(){
@@ -391,8 +419,12 @@ public class MainActivity extends AppCompatActivity {
     public BluetoothAdapter.LeScanCallback hubScanCallback = new BluetoothAdapter.LeScanCallback(){
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
-            BluetoothGatt hubGatt = device.connectGatt(context, true, bluetooth.hubGattCallback);
-            hubAdapter.addHub(hubGatt);
+            ServiceConnection con = new conn();
+            Intent btIntent = new Intent(context, BluetoothService.class);
+            startService(btIntent);
+            device_type.add(false);
+            devices.add(device);
+            bindService(btIntent, con, BIND_AUTO_CREATE);
         }
     };
 
@@ -400,20 +432,34 @@ public class MainActivity extends AppCompatActivity {
     public BluetoothAdapter.LeScanCallback sensorScanCallback = new BluetoothAdapter.LeScanCallback(){
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
-            BluetoothGatt sensorGatt = device.connectGatt(context, true, bluetooth.sensorGattCallback);
-            sensorAdapter.addSensor(sensorGatt, context);
+            ServiceConnection con = new conn();
+            Intent btIntent = new Intent(context, BluetoothService.class);
+            startService(btIntent);
+            device_type.add(true);
+            devices.add(device);
+            bindService(btIntent, con, BIND_AUTO_CREATE);
+
         }
     };
 
     //callback for connecting to the service
     public class conn implements ServiceConnection{
+        int idx;
         @Override
         public void onServiceConnected(ComponentName name, IBinder service){
-            boolean firstConnect = bluetooth == null;
-            bluetooth = ((BluetoothService.LocalBinder) service).getService();
-            if(firstConnect){
-                scanForHub(null);
-                scanForSensor(null);
+            /*boolean firstConnect = bluetooth == null;
+            bluetooth = ((BluetoothService.LocalBinder) service).getService();*/
+
+            callbacks.add(((BluetoothService.LocalBinder) service).getService());
+            idx = callbacks.size() - 1;
+
+            BluetoothDevice device = devices.get(idx);
+            if(device_type.get(idx)){//true implies sensor
+                BluetoothGatt sensorGatt = device.connectGatt(context, true, callbacks.get(callbacks.size()-1).sensorGattCallback);
+                sensorAdapter.addSensor(sensorGatt, context);
+            }else{
+                BluetoothGatt hubGatt = device.connectGatt(context, true, callbacks.get(callbacks.size()-1).hubGattCallback);
+                hubAdapter.addHub(hubGatt);
             }
 
         }

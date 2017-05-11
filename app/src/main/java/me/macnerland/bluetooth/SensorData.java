@@ -416,6 +416,7 @@ class SensorData{
         switch(child){
             case 0:
                 v = inflater.inflate(R.layout.sensor_button, parent, false);
+                MainActivity.register_view_to_address(v, bluetooth.getDevice().getAddress());
                 return v;
             case 1:
                 v = inflater.inflate(R.layout.sensor_graph, parent, false);

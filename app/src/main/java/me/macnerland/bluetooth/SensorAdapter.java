@@ -175,10 +175,73 @@ class SensorAdapter implements ExpandableListAdapter {
             }
     }
 
+    void updateTemperature(String sensor){
+        int index = sensorIndex.get(sensor);
+        SensorData sd = sensors.get(index);
+        if(sd.dataState != SensorData.NO_DATA_PENDING){
+            return;
+        }
+
+        BluetoothGatt gatt = sd.getGATT();
+        if(gatt == null){
+            Log.e(TAG, "Call to update disconnected sensor");
+            return;
+        }
+
+        if(!gatt.connect()){
+            return;
+        }
+
+        BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
+        if(bs == null){
+            Log.e(TAG, "Bad Service");
+            return;
+        }
+
+        BluetoothGattCharacteristic bgc =
+                bs.getCharacteristic(Constant.sensorCharacteristicUUID);
+        if (bgc == null){
+            Log.e(TAG, "Bad Characteristic");
+            return;
+        }
+
+        bgc.setValue(TempCommand);
+        gatt.writeCharacteristic(bgc);
+        sd.dataState = SensorData.TEMPERATURE_DATA_PENDING;
+    }
+
     void updateHumidity(String sensor){
         int index = sensorIndex.get(sensor);
         SensorData sd = sensors.get(index);
+        if(sd.dataState != SensorData.NO_DATA_PENDING){
+            return;
+        }
+
         BluetoothGatt gatt = sd.getGATT();
+        if(gatt == null){
+            Log.e(TAG, "Call to update disconnected sensor");
+            return;
+        }
+
+        if(!gatt.connect()){
+            return;
+        }
+        BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
+        if(bs == null){
+            Log.e(TAG, "Bad Service");
+            return;
+        }
+
+        BluetoothGattCharacteristic bgc =
+                bs.getCharacteristic(Constant.sensorCharacteristicUUID);
+        if (bgc == null){
+            Log.e(TAG, "Bad Characteristic");
+            return;
+        }
+
+        bgc.setValue(HumidCommand);
+        gatt.writeCharacteristic(bgc);
+        sd.dataState = SensorData.HUMIDITY_DATA_PENDING;
     }
 
     void updateHumidity(){

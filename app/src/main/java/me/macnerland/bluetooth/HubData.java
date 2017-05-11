@@ -330,6 +330,8 @@ class HubData implements HubInterface{
         }
         Log.v(TAG, "sending hub command: " + str);
 
+        gatt.connect();
+
         BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
         if(bgs != null) {
             BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
