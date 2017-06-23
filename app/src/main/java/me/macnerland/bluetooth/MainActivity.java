@@ -51,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static SensorAdapter sensorAdapter;
     private static HubAdapter hubAdapter;
+    private static WebAdapter webAdapter;
 
     private static BluetoothManager bluetoothManager;
     private static BluetoothAdapter bluetoothAdapter;
@@ -96,6 +97,7 @@ public class MainActivity extends AppCompatActivity {
 
             sensorAdapter = new SensorAdapter(context);
             hubAdapter = new HubAdapter(context);
+            webAdapter = new WebAdapter(context);
             adapter = new mPagerAdapter(this.getSupportFragmentManager(), getResources());
         }else{//the savedInstanceState contains data
             /*if(savedInstanceState.containsKey(sensorAdapterSISkey)){
@@ -288,6 +290,10 @@ public class MainActivity extends AppCompatActivity {
 
     public static SensorAdapter getSensorAdapter(){
         return sensorAdapter;
+    }
+
+    public static WebAdapter getWebAdapter(){
+        return webAdapter;
     }
 
     //Method callable from view
