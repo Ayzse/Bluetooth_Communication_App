@@ -171,18 +171,6 @@ public class MainActivity extends AppCompatActivity {
         view_to_address.put(v, a);
     }
 
-    public void specific_temp(View button){
-        View target = (View)button.getParent();
-        String address = view_to_address.get(target);
-        sensorAdapter.updateTemperature(address);
-    }
-
-    public void specific_humid(View button){
-        View target = (View)button.getParent();
-        String address = view_to_address.get(target);
-        sensorAdapter.updateHumidity(address);
-    }
-
     @TargetApi(21)
     public void initLollipopBluetooth(){
         //TODO: create a List<ScanFileter> and begin bluetooth the lollipop way
@@ -301,19 +289,6 @@ public class MainActivity extends AppCompatActivity {
         return webAdapter;
     }
 
-    //Method callable from view
-    public void updateH(View Null){
-        if(Build.VERSION.SDK_INT < 23) {
-            bluetoothAdapter.stopLeScan(sensorScanCallback);
-        }else{
-            Log.i(TAG, "Scan stopping");
-            stopscan();
-        }
-
-        sensorAdapter.updateHumidity();
-        //sensorAdapter.updateBoth();
-    }
-
     @TargetApi(23)
     void stopscan(){
         if(bluetoothLeScanner != null){
@@ -334,6 +309,19 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //Method callable from view
+    public void updateH(View Null){
+        if(Build.VERSION.SDK_INT < 23) {
+            bluetoothAdapter.stopLeScan(sensorScanCallback);
+        }else{
+            Log.i(TAG, "Scan stopping");
+            stopscan();
+        }
+
+        sensorAdapter.updateHumidity();
+        //sensorAdapter.updateBoth();
+    }
+
     //Top level function to request data
     public void updateT(View Null){
         if(Build.VERSION.SDK_INT < 23) {
@@ -342,6 +330,18 @@ public class MainActivity extends AppCompatActivity {
             stopscan();
         }
         sensorAdapter.updateTemperature();
+    }
+
+    public void specific_temp(View button){
+        View target = (View)button.getParent();
+        String address = view_to_address.get(target);
+        sensorAdapter.updateTemperature(address);
+    }
+
+    public void specific_humid(View button){
+        View target = (View)button.getParent();
+        String address = view_to_address.get(target);
+        sensorAdapter.updateHumidity(address);
     }
 
     void lollipopHubScan(){
@@ -420,8 +420,8 @@ public class MainActivity extends AppCompatActivity {
             public void onScanResult(int callbackType, ScanResult result) {
                 super.onScanResult(callbackType, result);
                 BluetoothDevice device = result.getDevice();
-                BluetoothGatt sensorGatt = device.connectGatt(context, true, bluetooth.sensorGattCallback);
-                sensorAdapter.addSensor(sensorGatt, context);
+                sensorAdapter.addSensor(context, device);
+
             }});
 
     }
@@ -431,8 +431,8 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
             String address = device.getAddress();
-            if(!devices.keySet().contains(address)) {
 
+            if(!devices.keySet().contains(address)) {
                 ServiceConnection con = new conn();
                 Intent btIntent = new Intent(context, BluetoothService.class);
                 startService(btIntent);
@@ -450,6 +450,8 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
             String address = device.getAddress();
+            sensorAdapter.addSensor(context, device);
+            /*
             if(!devices.keySet().contains(address)) {
 
                 ServiceConnection con = new conn();
@@ -460,7 +462,7 @@ public class MainActivity extends AppCompatActivity {
                 devices.put(address, device);
                 callbacks.put(address, null);
                 bindService(btIntent, con, BIND_AUTO_CREATE);
-            }
+            }*/
         }
     };
 
@@ -474,6 +476,7 @@ public class MainActivity extends AppCompatActivity {
             BluetoothService bs = ((BluetoothService.LocalBinder) service).getService();
 
             String addr = null;
+            // search for the address
             for(String address : callbacks.keySet()){
                 if(callbacks.get(address) == null){
                     callbacks.put(address, bs);
@@ -488,8 +491,7 @@ public class MainActivity extends AppCompatActivity {
 
             BluetoothDevice device = devices.get(addr);
             if(device_type.get(addr)){//true implies sensor
-                BluetoothGatt sensorGatt = device.connectGatt(context, true, bs.sensorGattCallback);
-                sensorAdapter.addSensor(sensorGatt, context);
+                sensorAdapter.addSensor(context, device);
             }else{
                 BluetoothGatt hubGatt = device.connectGatt(context, true, bs.hubGattCallback);
                 hubAdapter.addHub(hubGatt);

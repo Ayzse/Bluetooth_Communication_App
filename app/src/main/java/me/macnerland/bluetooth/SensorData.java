@@ -3,8 +3,12 @@ package me.macnerland.bluetooth;
 import android.app.Activity;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.graphics.Color;
+import android.os.IBinder;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.support.v4.content.res.ResourcesCompat;
@@ -30,6 +34,8 @@ import java.util.GregorianCalendar;
 import java.util.Hashtable;
 import java.util.Vector;
 
+import static android.content.Context.BIND_AUTO_CREATE;
+
 /**
  * Provides the data and interface for a sensor
  * This class represents a sensor and all of the data associated with it.
@@ -40,7 +46,6 @@ class SensorData{
     private static final int numberChildren = 2;
 
     private final Context context;
-    private BluetoothGatt bluetooth;
     private boolean connected;
     private Float currTemp;
     private Float currHumid;
@@ -92,34 +97,6 @@ class SensorData{
         this.address = address;
 
         dataState = NO_DATA_PENDING;
-
-        if(can_write) {
-            enableWrite();
-        }
-        else{
-            osw_humid = null;
-            osw_temp = null;
-        }
-    }
-
-    //create a sensor. This is called when seeing a new sensor for the first time
-    SensorData(BluetoothGatt bg, Context c, boolean can_write){
-        connected = false;
-        bluetooth = bg;
-        context = c;
-
-        currHumid = 0.0f;
-        currTemp = 0.0f;
-
-        temperatureSeries = new PointsGraphSeries<>();
-        temperatureSeries.setColor(Color.BLUE);
-        humiditySeries = new PointsGraphSeries<>();
-        humiditySeries.setColor(Color.RED);
-
-        BluetoothDevice bd = bg.getDevice();
-
-        name = bd.getName();
-        address = bd.getAddress();
 
         if(can_write) {
             enableWrite();
@@ -276,7 +253,7 @@ class SensorData{
     //This is called when connecting to sensors that have been previously connected to. (Those that
     // already contain csv files.)
     void connectGatt(BluetoothGatt b){
-        bluetooth = b;
+        bluetoothGatt = b;
     }
 
     boolean isConnected(){
@@ -370,7 +347,7 @@ class SensorData{
     }
 
     BluetoothGatt getGATT(){
-        return bluetooth;
+        return bluetoothGatt;
     }
 
     View getParentView(boolean isExpanded, View convertView, ViewGroup parent){
@@ -501,5 +478,68 @@ class SensorData{
         address = in.readString();
 
     }
+
+
+
+    BluetoothDevice bluetoothDevice;
+    BluetoothService bluetoothService;
+    BluetoothGatt bluetoothGatt;
+
+    /*BEGIN fix methods*/
+    //Type I dataflow method, used to add new sensors to the phone
+    SensorData(Context c, BluetoothDevice bd, boolean can_write){
+        context = c;
+        connected = true;
+        bluetoothDevice = bd;
+
+        name = bd.getName();
+        address = bd.getAddress();
+        currHumid = 0.0f;
+        currTemp = 0.0f;
+
+        temperatureSeries = new PointsGraphSeries<>();
+        temperatureSeries.setColor(Color.BLUE);
+        humiditySeries = new PointsGraphSeries<>();
+        humiditySeries.setColor(Color.RED);
+
+        BluetoothConnection bc = new BluetoothConnection();
+        Intent btIntent = new Intent(context, BluetoothService.class);
+        context.startService(btIntent);
+        context.bindService(btIntent, bc, BIND_AUTO_CREATE);
+
+        if(can_write) {
+            enableWrite();
+        }
+        else{
+            osw_humid = null;
+            osw_temp = null;
+        }
+    }
+
+    void connect(BluetoothDevice bd){
+        bluetoothDevice = bd;
+        BluetoothConnection bc = new BluetoothConnection();
+        Intent btIntent = new Intent(context, BluetoothService.class);
+        context.startService(btIntent);
+        context.bindService(btIntent, bc, BIND_AUTO_CREATE);
+    }
+
+    class BluetoothConnection implements ServiceConnection{
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            connected = true;
+            bluetoothService = ((BluetoothService.LocalBinder) service).getService();
+            bluetoothGatt = bluetoothDevice.connectGatt(context, true,
+                    bluetoothService.sensorGattCallback);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            bluetoothService = null;
+            bluetoothGatt = null;
+            connected = false;
+        }
+    }
+
 
 }
