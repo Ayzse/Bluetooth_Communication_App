@@ -370,10 +370,7 @@ class SensorData{
     }
 
     BluetoothGatt getGATT(){
-        if(connected) {
-            return bluetooth;
-        }
-        return null;
+        return bluetooth;
     }
 
     View getParentView(boolean isExpanded, View convertView, ViewGroup parent){
@@ -416,7 +413,7 @@ class SensorData{
         switch(child){
             case 0:
                 v = inflater.inflate(R.layout.sensor_button, parent, false);
-                MainActivity.register_view_to_address(v, bluetooth.getDevice().getAddress());
+                MainActivity.register_view_to_address(v, address);
                 return v;
             case 1:
                 v = inflater.inflate(R.layout.sensor_graph, parent, false);

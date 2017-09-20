@@ -33,6 +33,7 @@ import android.view.View;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.UUID;
@@ -76,18 +77,21 @@ public class MainActivity extends AppCompatActivity {
 
     private static Hashtable<View, String> view_to_address;
 
-    private Vector<BluetoothService> callbacks;
-    private Vector<BluetoothDevice> devices;
-    private Vector<Boolean> device_type;
+    //keys are addresses
+    private HashMap<String, BluetoothService> callbacks;
+    private Hashtable<String, BluetoothDevice> devices;
+    private Hashtable<String, Boolean> device_type;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.tab_pager);
         view_to_address = new Hashtable<>();
-        devices = new Vector<>();
-        device_type = new Vector<>();
-        callbacks = new Vector<>();
+        devices = new Hashtable<>();
+        device_type = new Hashtable<>();
+        callbacks = new HashMap<>();
         bluetoothStatus = (AppCompatImageView)findViewById(R.id.bluetooth_status);
+
+        registerReceiver(mGattUpdateReceiver, getGATTFilters());
 
         //This is critical to set here, future object instances may call getContext()
         context = this;
@@ -116,6 +120,8 @@ public class MainActivity extends AppCompatActivity {
             case 18:
             case 19:
             case 20:
+            case 21:
+            case 22:
                 bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
                 bluetoothAdapter = bluetoothManager.getAdapter();
 
@@ -146,14 +152,13 @@ public class MainActivity extends AppCompatActivity {
                         scanForHub(null);
                         scanForSensor(null);
                     }
-                    registerReceiver(mGattUpdateReceiver, getGATTFilters());
                 }
                 sensorAdapter.enableWrite();
                 break;
 
-            case 21:
+            /*case 21:
             case 22:
-                initLollipopBluetooth();
+                initLollipopBluetooth();*/
             case 23:
             default:
                 initMarshmallowBluetooth();
@@ -243,9 +248,8 @@ public class MainActivity extends AppCompatActivity {
                     Log.e(TAG, "Intent for marshmallow bluetooth");
                     Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                     this.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-                }else {
-                    registerReceiver(mGattUpdateReceiver, getGATTFilters());
                 }
+                startOrConnectToService();
 
             }
             else if(permissions[i].equals(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) && grantResults[i] == PackageManager.PERMISSION_GRANTED){
@@ -269,6 +273,7 @@ public class MainActivity extends AppCompatActivity {
 
     //call this when enabling bluetooth (after receiving the BluetoothAdapter)
     private void startOrConnectToService(){
+
         boolean firstConnect = false;
         if(callbacks.isEmpty()){
             firstConnect = true;
@@ -277,7 +282,7 @@ public class MainActivity extends AppCompatActivity {
             scanForHub(null);
             scanForSensor(null);
         }
-        registerReceiver(mGattUpdateReceiver, getGATTFilters());
+
     }
 
     static Context getContext(){
@@ -425,12 +430,18 @@ public class MainActivity extends AppCompatActivity {
     public BluetoothAdapter.LeScanCallback hubScanCallback = new BluetoothAdapter.LeScanCallback(){
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
-            ServiceConnection con = new conn();
-            Intent btIntent = new Intent(context, BluetoothService.class);
-            startService(btIntent);
-            device_type.add(false);
-            devices.add(device);
-            bindService(btIntent, con, BIND_AUTO_CREATE);
+            String address = device.getAddress();
+            if(!devices.keySet().contains(address)) {
+
+                ServiceConnection con = new conn();
+                Intent btIntent = new Intent(context, BluetoothService.class);
+                startService(btIntent);
+
+                device_type.put(address, false);
+                devices.put(address, device);
+                callbacks.put(address, null);
+                bindService(btIntent, con, BIND_AUTO_CREATE);
+            }
         }
     };
 
@@ -438,33 +449,49 @@ public class MainActivity extends AppCompatActivity {
     public BluetoothAdapter.LeScanCallback sensorScanCallback = new BluetoothAdapter.LeScanCallback(){
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord){
-            ServiceConnection con = new conn();
-            Intent btIntent = new Intent(context, BluetoothService.class);
-            startService(btIntent);
-            device_type.add(true);
-            devices.add(device);
-            bindService(btIntent, con, BIND_AUTO_CREATE);
+            String address = device.getAddress();
+            if(!devices.keySet().contains(address)) {
 
+                ServiceConnection con = new conn();
+                Intent btIntent = new Intent(context, BluetoothService.class);
+                startService(btIntent);
+
+                device_type.put(address, true);
+                devices.put(address, device);
+                callbacks.put(address, null);
+                bindService(btIntent, con, BIND_AUTO_CREATE);
+            }
         }
     };
 
     //callback for connecting to the service
     public class conn implements ServiceConnection{
-        int idx;
         @Override
         public void onServiceConnected(ComponentName name, IBinder service){
             /*boolean firstConnect = bluetooth == null;
             bluetooth = ((BluetoothService.LocalBinder) service).getService();*/
 
-            callbacks.add(((BluetoothService.LocalBinder) service).getService());
-            idx = callbacks.size() - 1;
+            BluetoothService bs = ((BluetoothService.LocalBinder) service).getService();
 
-            BluetoothDevice device = devices.get(idx);
-            if(device_type.get(idx)){//true implies sensor
-                BluetoothGatt sensorGatt = device.connectGatt(context, true, callbacks.get(callbacks.size()-1).sensorGattCallback);
+            String addr = null;
+            for(String address : callbacks.keySet()){
+                if(callbacks.get(address) == null){
+                    callbacks.put(address, bs);
+                    addr = address;
+                    break;
+                }
+            }
+            //all devices have callbacks
+            if(addr == null){
+                return;
+            }
+
+            BluetoothDevice device = devices.get(addr);
+            if(device_type.get(addr)){//true implies sensor
+                BluetoothGatt sensorGatt = device.connectGatt(context, true, bs.sensorGattCallback);
                 sensorAdapter.addSensor(sensorGatt, context);
             }else{
-                BluetoothGatt hubGatt = device.connectGatt(context, true, callbacks.get(callbacks.size()-1).hubGattCallback);
+                BluetoothGatt hubGatt = device.connectGatt(context, true, bs.hubGattCallback);
                 hubAdapter.addHub(hubGatt);
             }
 
@@ -476,7 +503,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    //This is not used, can't be called from broadcast receiver
 
     // IPC functions
     // Handles various events fired by the Service.
