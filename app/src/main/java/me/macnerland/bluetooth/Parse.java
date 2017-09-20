@@ -22,6 +22,8 @@ class Parse {
     static void create_user(String username, String password){
         String post_body = "{\"username\":\""+username+"\", \"password\":\""+password+"\" }";
 
+        byte[] post_bytes = post_body.getBytes();
+
 
         try {
             URL create_user_endpoint = new URL("https", "grainportalv2.herokuapp.com", "parse/users");
@@ -32,6 +34,8 @@ class Parse {
                     connection.setChunkedStreamingMode(0);
 
                     OutputStream out = new BufferedOutputStream(connection.getOutputStream());
+
+                    out.write(post_bytes);
 
                 } finally {
                     connection.disconnect();
@@ -45,6 +49,7 @@ class Parse {
     }
 
     static void login(){
+
 
     }
 }
