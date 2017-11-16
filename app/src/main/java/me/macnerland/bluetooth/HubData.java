@@ -1,8 +1,14 @@
 package me.macnerland.bluetooth;
 
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.os.IBinder;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
@@ -11,14 +17,14 @@ import android.widget.LinearLayout;
 
 import java.util.UUID;
 
+import static android.content.Context.BIND_AUTO_CREATE;
+
 /**
  * Created by Doug on 8/15/2016.
  * This represents a hub, and provides the underlying interface and data.
  */
 class HubData implements HubInterface{
     private static final String TAG = "HubData";
-
-    private BluetoothGatt gatt;
 
     private String hubAlertNumber;
     private String hubPortalNumber;
@@ -46,31 +52,31 @@ class HubData implements HubInterface{
     //From Luis's command list. Commands 1, 6, 7, 27 have not been implemented and are
     //indices 0, 5, 6, and 26
     //each command is the index into the command_formats array
-    static final int getHubId = 1;
-    static final int setHubId = 2;
-    static final int getNumberOfSensors = 3;
-    static final int getListOfSensors = 4;
-    static final int getASensorID = 0;
-    static final int setASensorID = 0;
-    static final int addASensor = 7;
-    static final int removeASensor = 8;
-    static final int removeAllSensors = 9;
-    static final int getAlertPhoneNumber = 10;
-    static final int setAlertPhoneNumber = 11;
-    static final int getPortalPhoneNumber = 12;
-    static final int setPortalPhoneNumber = 13;
-    static final int getPortalNotificationFreq = 14;
-    static final int setPortalNotificationFreq = 15;
-    static final int getLoggingFrequency = 16;
-    static final int setLoggingFrequency = 17;
-    static final int getHubTime = 18;
-    static final int setHubTime = 19;
-    static final int getHubDate = 20;
-    static final int setHubDate = 21;
-    static final int getCriticalTemperature = 22;
-    static final int setCriticalTemperature = 23;
-    static final int getCriticalHumidity = 24;
-    static final int setCriticalHumidity =25;
+    private static final int getHubId = 1;
+    private static final int setHubId = 2;
+    private static final int getNumberOfSensors = 3;
+    private static final int getListOfSensors = 4;
+    private static final int getASensorID = 0;
+    private static final int setASensorID = 0;
+    private static final int addASensor = 7;
+    private static final int removeASensor = 8;
+    private static final int removeAllSensors = 9;
+    private static final int getAlertPhoneNumber = 10;
+    private static final int setAlertPhoneNumber = 11;
+    private static final int getPortalPhoneNumber = 12;
+    private static final int setPortalPhoneNumber = 13;
+    private static final int getPortalNotificationFreq = 14;
+    private static final int setPortalNotificationFreq = 15;
+    private static final int getLoggingFrequency = 16;
+    private static final int setLoggingFrequency = 17;
+    private static final int getHubTime = 18;
+    private static final int setHubTime = 19;
+    private static final int getHubDate = 20;
+    private static final int setHubDate = 21;
+    private static final int getCriticalTemperature = 22;
+    private static final int setCriticalTemperature = 23;
+    private static final int getCriticalHumidity = 24;
+    private static final int setCriticalHumidity =25;
 
     private static final String[] command_formats = {"",
     "2 \n",
@@ -109,10 +115,21 @@ class HubData implements HubInterface{
     private static final UUID hubCharacteristicGattUUID =   new UUID(0x0000ffe100001000L, 0x800000805f9b34fbL);
 
     private boolean initializing;
+    private Context context;
+    private BluetoothService bluetoothService;
+    private boolean connected;
+    private BluetoothGatt bluetoothGatt;
+    private BluetoothDevice bluetoothDevice;
 
-    HubData(BluetoothGatt bg){
+    HubData(Context c, BluetoothDevice bd){
         datastate = HUB_NO_DATA_PENDING;
-        gatt = bg;
+        context = c;
+        bluetoothDevice = bd;
+
+        BluetoothConnection bc = new BluetoothConnection();
+        Intent btIntent = new Intent(context, BluetoothService.class);
+        context.startService(btIntent);
+        context.bindService(btIntent, bc, BIND_AUTO_CREATE);
         selected_command = 0;
 
         hubAlertNumber = "No Hub Connected";
@@ -129,10 +146,27 @@ class HubData implements HubInterface{
         //initialize();
     }
 
+    private class BluetoothConnection implements ServiceConnection {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            connected = true;
+            bluetoothService = ((BluetoothService.LocalBinder) service).getService();
+            bluetoothGatt = bluetoothDevice.connectGatt(context, true,
+                    bluetoothService.sensorGattCallback);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            bluetoothService = null;
+            bluetoothGatt = null;
+            connected = false;
+        }
+    }
+
     //dummy constructer
     HubData(String han, String hpn, String hpf, String hlf, String ht, String hd, String hct, String hch){
         datastate = HUB_NO_DATA_PENDING;
-        gatt = null;
+        bluetoothGatt = null;
         selected_command = 0;
 
         hubAlertNumber = han;
@@ -197,49 +231,49 @@ class HubData implements HubInterface{
 
     public boolean isConnected() { return isConnected;}
 
-    public BluetoothGatt getGATT(){
-        return gatt;
+    BluetoothGatt getGATT(){
+        return bluetoothGatt;
     }
 
-    public String getAlertNumber(){
+    String getAlertNumber(){
         return hubAlertNumber;
     }
 
-    public String getPortalNumber(){
+    String getPortalNumber(){
         return hubPortalNumber;
     }
 
-    public String getPortalFreq(){
+    String getPortalFreq(){
         return hubPortalFreq;
     }
 
-    public String getLogFrequency(){
+    String getLogFrequency(){
         return hubLogFreq;
     }
 
-    public String getTime(){
+    String getTime(){
         return hubTime;
     }
 
-    public String getDate(){
+    String getDate(){
         return hubDate;
     }
 
-    public String getCriticalTemperature(){
+    String getCriticalTemperature(){
         return hubCritTemp;
     }
 
-    public String getCriticalHumidity(){
+    String getCriticalHumidity(){
         return hubCritHum;
     }
 
-    void send(String parameter){
+    private void send(String parameter){
         sendCommand(display_to_command[selected_command], parameter);
     }
 
     //Issue a command to the hub. command must be one of the enumerated commands.
     //The parameter is the argument for the command. Some commands will not have parameters
-    boolean sendCommand(int command, String parameter){
+    private boolean sendCommand(int command, String parameter){
         //if the parameter is greater than the maximum parameter length, return.
         //if bad command, return. If currently waiting for data, return.
         if(parameter.length() > 16 || command == 0 || datastate != HUB_NO_DATA_PENDING){
@@ -330,9 +364,9 @@ class HubData implements HubInterface{
         }
         Log.v(TAG, "sending hub command: " + str);
 
-        gatt.connect();
+        bluetoothGatt.connect();
 
-        BluetoothGattService bgs = gatt.getService(hubServiceGattUUID);
+        BluetoothGattService bgs = bluetoothGatt.getService(hubServiceGattUUID);
         if(bgs != null) {
             BluetoothGattCharacteristic bgc = bgs.getCharacteristic(hubCharacteristicGattUUID);
             if(bgc != null){
@@ -345,7 +379,7 @@ class HubData implements HubInterface{
 
 
                 bgc.setValue(strAsBytes);
-                gatt.writeCharacteristic(bgc);
+                bluetoothGatt.writeCharacteristic(bgc);
                 return true;
             }else{
                 Log.e(TAG, "Hub's Bluetooth gatt Characteristic is null");

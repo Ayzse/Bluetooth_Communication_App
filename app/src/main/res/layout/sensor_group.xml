@@ -6,8 +6,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:id="@+id/sensor_group_text"
-        android:text="default"/>
+        android:id="@+id/sensor_group_text"/>
 
     <TextView
         android:layout_width="match_parent"
@@ -18,5 +17,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:id="@+id/humidity"/>
+
+
+
 
 </LinearLayout>

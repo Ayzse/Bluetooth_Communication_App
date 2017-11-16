@@ -6,34 +6,20 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Scan for Sensors"
+        android:text="@string/sensor_scan"
         android:id="@+id/scan_for_sensors"
         android:onClick="scanForSensor"/>
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Get Humidity"
-        android:id="@+id/getH"
-        android:onClick="updateH"/>
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Get Temperature"
-        android:id="@+id/getT"
-        android:onClick="updateT"/>
 
     <ExpandableListView
         android:id="@+id/elv"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"></ExpandableListView>
+        android:layout_height="match_parent"/>
 
     <TextView
         android:id="@id/android:empty"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center"
-        android:text="No sensors connected"/>
+        android:text="@string/no_connections"/>
 
 </LinearLayout>

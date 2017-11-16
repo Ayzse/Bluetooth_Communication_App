@@ -1,6 +1,5 @@
 package me.macnerland.bluetooth;
 
-import android.app.Activity;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.content.ComponentName;
@@ -19,7 +18,6 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.jjoe64.graphview.GraphView;
-import com.jjoe64.graphview.helper.DateAsXAxisLabelFormatter;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.PointsGraphSeries;
 
@@ -31,8 +29,6 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.Hashtable;
-import java.util.Vector;
 
 import static android.content.Context.BIND_AUTO_CREATE;
 
@@ -47,30 +43,24 @@ class SensorData{
 
     private final Context context;
     private boolean connected;
+    private boolean write_enabled;
+    private final String name;
+    private final String address;
     private Float currTemp;
     private Float currHumid;
+
+    private BluetoothDevice bluetoothDevice;
+    private BluetoothService bluetoothService;
+    private BluetoothGatt bluetoothGatt;
+
 
     //data series for the graph view
     private PointsGraphSeries<DataPoint> temperatureSeries;
     private PointsGraphSeries<DataPoint> humiditySeries;
 
-    //the data returned from the sensor does not indicate whether it is humidity or temperature,
-    //so this class must keep track of the data it is waiting for.
-    int dataState;
-    static final int NO_DATA_PENDING = 0;
-    static final int TEMPERATURE_DATA_PENDING = 1;
-    static final int HUMIDITY_DATA_PENDING = 2;
-    static final int HUMIDITY_THEN_TEMP = 3;
-
-
-    private boolean write_enabled;
-    private final String name;
-    private final String address;
-
     //files representing the csv file outputs. These are initialized when the object is constructed
     private File out_temp;
     private File out_humid;
-
     //output stream that writes to the csv files.
     //Having two OutputStreams helps prevent race conditions
     private OutputStreamWriter osw_temp;
@@ -79,6 +69,14 @@ class SensorData{
     //csv file headers that indicate the data columns
     private static final String header_temp = "time, temperature\n";
     private static final String header_humid = "time, humid\n";
+
+    //the data returned from the sensor does not indicate whether it is humidity or temperature,
+    //so this class must keep track of the data it is waiting for.
+    int dataState;
+    static final int NO_DATA_PENDING = 0;
+    static final int TEMPERATURE_DATA_PENDING = 1;
+    static final int HUMIDITY_DATA_PENDING = 2;
+    static final int HUMIDITY_THEN_TEMP = 3;
 
     //create a disconnected sensor. This is called when restoring a sensor from csv
     SensorData(String address, String nme, Context c, boolean can_write){
@@ -200,7 +198,7 @@ class SensorData{
                     }
 
                     long time = Long.parseLong(timestamp);
-                    insertTemp(temp, time);
+                    //insertTemp(temp, time);
                 }
             }catch (IOException io){
                 Log.e(TAG, "temp 2:" + io.toString());
@@ -234,7 +232,7 @@ class SensorData{
                     }
 
                     long time = Long.parseLong(timestamp);
-                    insertHumid(humid, time);
+                    //insertHumid(humid, time);
                 }
             }catch (IOException io){
                 Log.e(TAG, "Humid 2:" + io.toString());
@@ -250,18 +248,13 @@ class SensorData{
 
     }
 
-    //This is called when connecting to sensors that have been previously connected to. (Those that
-    // already contain csv files.)
-    void connectGatt(BluetoothGatt b){
-        bluetoothGatt = b;
-    }
-
     boolean isConnected(){
         return connected;
     }
 
-    void Connect(){
+    void Connect(BluetoothDevice bd){
         connected = true;
+        //bd.
     }
 
     void Disconnect(){
@@ -274,36 +267,13 @@ class SensorData{
         temperatureSeries.appendData(new DataPoint(new Date(time), (double)temp), true, 10);
     }
 
-    //temperature series must be thread-safe
-    private void updateTemp(float T){
-        if(connected){
-
-        }
-    }
-
     private void insertHumid(String rH, long time){
         float humid = Float.parseFloat(rH);
         humiditySeries.appendData(new DataPoint(new Date(time), (double)humid), true, 10);
     }
 
-    private void updateHumid(float rH){
-        currHumid = rH;
-        GregorianCalendar gregorianCalendar = new GregorianCalendar();
-        humiditySeries.appendData(
-                new DataPoint(gregorianCalendar.getTime(), (double) currHumid),
-                true, 10);
-        if(osw_humid != null) {
-            try {
-                osw_humid.write("" + gregorianCalendar.getTimeInMillis() + "," + currHumid + "\n");
-            } catch (IOException io) {
-                Log.e(TAG, io.toString());
-            }
-        }
-    }
-
     void receiveData(String value){
-
-        float valueAsFloat = 0.0f;
+        float valueAsFloat;
         if(value.equals("nan")){
             Log.e(TAG, "sensor error: check connection between temp/hum detector and sensor board");
             return;
@@ -316,10 +286,11 @@ class SensorData{
             return;
         }
 
+
+        GregorianCalendar gregorianCalendar = new GregorianCalendar();
         switch(dataState){
             case SensorData.TEMPERATURE_DATA_PENDING:
                 currTemp = valueAsFloat;
-                GregorianCalendar gregorianCalendar = new GregorianCalendar();
                 temperatureSeries.appendData(
                         new DataPoint(gregorianCalendar.getTime(), (double) currTemp),
                         true, 10);
@@ -332,12 +303,30 @@ class SensorData{
                 }
                 break;
             case SensorData.HUMIDITY_DATA_PENDING:
-                updateHumid(valueAsFloat);
+                currHumid = valueAsFloat;
+                humiditySeries.appendData(
+                        new DataPoint(gregorianCalendar.getTime(), (double) valueAsFloat),
+                        true, 10);
+                if(osw_humid != null) {
+                    try {
+                        osw_humid.write("" + gregorianCalendar.getTimeInMillis() + "," + currHumid + "\n");
+                    } catch (IOException io) {
+                        Log.e(TAG, io.toString());
+                    }
+                }
                 break;
             case SensorData.HUMIDITY_THEN_TEMP:
-                updateHumid(valueAsFloat);
-                SensorAdapter get = MainActivity.getSensorAdapter();
-                get.updateTemperature();
+                currHumid = valueAsFloat;
+                humiditySeries.appendData(
+                        new DataPoint(gregorianCalendar.getTime(), (double) valueAsFloat),
+                        true, 10);
+                if(osw_humid != null) {
+                    try {
+                        osw_humid.write("" + gregorianCalendar.getTimeInMillis() + "," + currHumid + "\n");
+                    } catch (IOException io) {
+                        Log.e(TAG, io.toString());
+                    }
+                }
                 break;
             default:
                 Log.e(TAG, "Bad data state");
@@ -401,8 +390,9 @@ class SensorData{
                 graph.addSeries(temperatureSeries);
                 graph.addSeries(humiditySeries);
                 graph.getViewport().setXAxisBoundsManual(true);
-                graph.getGridLabelRenderer().setLabelFormatter(new DateAsXAxisLabelFormatter(context));
-                graph.getGridLabelRenderer().setNumHorizontalLabels(4);
+                //graph.getGridLabelRenderer().setLabelFormatter(new DateAsXAxisLabelFormatter(context));
+                graph.getGridLabelRenderer().setLabelFormatter(new SensorLabelFormatter());
+                graph.getGridLabelRenderer().setNumHorizontalLabels(3);
                 return v;
 
         }
@@ -471,19 +461,15 @@ class SensorData{
         }
     };
 
+    /*
     private SensorData(Parcel in){
         context = MainActivity.getContext();
 
         name = in.readString();
         address = in.readString();
-
     }
+    */
 
-
-
-    BluetoothDevice bluetoothDevice;
-    BluetoothService bluetoothService;
-    BluetoothGatt bluetoothGatt;
 
     /*BEGIN fix methods*/
     //Type I dataflow method, used to add new sensors to the phone
@@ -491,6 +477,7 @@ class SensorData{
         context = c;
         connected = true;
         bluetoothDevice = bd;
+        dataState = 0;
 
         name = bd.getName();
         address = bd.getAddress();
@@ -519,12 +506,21 @@ class SensorData{
     void connect(BluetoothDevice bd){
         bluetoothDevice = bd;
         BluetoothConnection bc = new BluetoothConnection();
+        dataState = 0;
+        connected = true;
         Intent btIntent = new Intent(context, BluetoothService.class);
         context.startService(btIntent);
         context.bindService(btIntent, bc, BIND_AUTO_CREATE);
     }
 
-    class BluetoothConnection implements ServiceConnection{
+    void disconnect(){
+        if(bluetoothGatt != null){
+            bluetoothGatt.disconnect();
+            bluetoothDevice = null;
+        }
+    }
+
+    private class BluetoothConnection implements ServiceConnection{
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             connected = true;

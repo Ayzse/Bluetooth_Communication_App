@@ -179,7 +179,6 @@ class SensorAdapter implements ExpandableListAdapter {
                     BluetoothGattCharacteristic bgc = bs.getCharacteristic(Constant.sensorCharacteristicUUID);
                     if(bgc == null) break;
                     gatt.readCharacteristic(bgc);
-                    if(con == null) break;
                     con.dataState = SensorData.TEMPERATURE_DATA_PENDING;
                 }
             }
@@ -198,9 +197,11 @@ class SensorAdapter implements ExpandableListAdapter {
             return;
         }
 
+        /*this method is to reconnect only.
         if(!gatt.connect()){
             return;
         }
+        */
 
         BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
         if(bs == null){
@@ -233,9 +234,11 @@ class SensorAdapter implements ExpandableListAdapter {
             return;
         }
 
+        /*
         if(!gatt.connect()){
             return;
         }
+        */
         BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
         if(bs == null){
             Log.e(TAG, "Bad Service");
@@ -334,9 +337,10 @@ class SensorAdapter implements ExpandableListAdapter {
         sensor.receiveData(value);
     }
 
-    void connectSensor(String address){
+
+    void connectSensor(String address, BluetoothDevice bd){
         if(sensorIndex.keySet().contains(address)){
-            sensors.get(sensorIndex.get(address)).Connect();
+            sensors.get(sensorIndex.get(address)).Connect(bd);
             notifyDSO();
         }else{
             Log.e(TAG, "Serious error: tried to connect non-existent sensor");
@@ -469,18 +473,6 @@ class SensorAdapter implements ExpandableListAdapter {
         }
     }
 
-    public int describeContents(){
-        return 0;
-    }
-
-    public void writeToParcel(Parcel out, int flags){
-
-        for(SensorData sd : sensors){
-            //parcel sensor data and write it into out
-        }
-
-    }
-
     public static final Parcelable.Creator<SensorAdapter> CREATOR
             = new Parcelable.Creator<SensorAdapter>(){
         public SensorAdapter createFromParcel(Parcel in){
@@ -492,18 +484,15 @@ class SensorAdapter implements ExpandableListAdapter {
         }
     };
 
+    /*
     private SensorAdapter(Parcel in){
         DSO = new Vector<>();
         sensorIndex = new Hashtable<>();
         sensors = new Vector<SensorData>();
         context = MainActivity.getContext();
-
-
     }
+    */
 
-
-
-    /*BEGIN addSensor fix*/
     void addSensor(Context c, BluetoothDevice bd){
         String address = bd.getAddress();
         if(!sensorIndex.keySet().contains(address)){
@@ -515,15 +504,21 @@ class SensorAdapter implements ExpandableListAdapter {
             int idx = sensors.size() - 1;
             sensorIndex.put(address, idx);
             notifyDSO();
-
         } else if(!sensors.get(sensorIndex.get(address)).isConnected()){
             // MAC address has been seen before and has data that has been restored
             // Type VI dataflow
             SensorData sensorData = sensors.get(sensorIndex.get(address));
             sensorData.connect(bd);
+            notifyDSO();
 
         }
         // otherwise there is a Type II dataflow, just ignore it.
     }
 
+    void disconnect(String address){
+        if(sensorIndex.keySet().contains(address)) {
+            int index = sensorIndex.get(address);
+            SensorData sd = sensors.get(index);
+        }
+    }
 }
