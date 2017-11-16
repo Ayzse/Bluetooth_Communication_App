@@ -7,10 +7,14 @@
     <string name="hub_button">Send</string>
     <string name="temp">Get Temperature</string>
     <string name="humid">Get Humidity</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="sensor_scan">Scan For Sensors</string>
+    <string name="hub_scan">Scan For Hubs</string>
+    <string name="no_connections">No sensors connected</string>
     <string-array
         name="page_titles">
-        <item>Hub</item>
         <item>Sensors</item>
+        <item>Hubs</item>
     </string-array>
     <string-array name="hub_commands">
         <item>Set portal number</item>

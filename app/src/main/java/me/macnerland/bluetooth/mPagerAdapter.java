@@ -1,5 +1,6 @@
 package me.macnerland.bluetooth;
 
+import android.bluetooth.BluetoothDevice;
 import android.content.res.Resources;
 import android.database.DataSetObserver;
 import android.support.v4.app.Fragment;
@@ -7,6 +8,7 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.util.Log;
 
+import java.util.List;
 import java.util.Vector;
 
 /**
@@ -16,6 +18,14 @@ import java.util.Vector;
 class mPagerAdapter extends FragmentPagerAdapter {
 
     private static final String TAG = "PagerAdapter";
+    private static final String SENSOR_FRAGMENT = "sensor_fragment";
+
+    private static final String sensorFClass = "me.macnerland.bluetooth.SensorFragment";
+    private static final String hubFClass = "me.macnerland.bluetooth.HubFragment";
+
+    private static final int sensor_rank = 0;
+    private static final int hub_rank = 1;
+
     private Fragment[] fragments;
     private String[] titles;
 
@@ -35,17 +45,33 @@ class mPagerAdapter extends FragmentPagerAdapter {
     mPagerAdapter(FragmentManager fm, Resources r){
         super(fm);
         DSO = new Vector<>();
+        titles = r.getStringArray(R.array.page_titles);
 
         fragments = new Fragment[2];
+        fragments[hub_rank] = null;
+        fragments[sensor_rank] = null;
 
-        titles = r.getStringArray(R.array.page_titles);
-        fragments[0] = new HubFragment();
+        // Try to restore previous fragments, if possible
+        List<Fragment> lf = fm.getFragments();
+        if(lf !=null) {
+            for (Fragment f : lf) {
+                Log.e(TAG, f.getClass().getCanonicalName());
+                if(f.getClass().getCanonicalName().equals(sensorFClass)){
+                    fragments[sensor_rank] = f;
+                }
+                if(f.getClass().getCanonicalName().equals(hubFClass)){
+                    fragments[hub_rank] = f;
+                }
+            }
+        }
 
-
-        SensorFragment sensorFragment = new SensorFragment();
-        fragments[1] = sensorFragment;
-
-        Log.v(TAG, "New Pager Adapter");
+        // If no fragments can be recovered, make new ones.
+        if(fragments[hub_rank] == null) {
+            fragments[hub_rank] = new HubFragment();
+        }
+        if(fragments[sensor_rank] == null) {
+            fragments[sensor_rank] = new SensorFragment();
+        }
     }
 
     @Override
@@ -64,5 +90,75 @@ class mPagerAdapter extends FragmentPagerAdapter {
     @Override
     public CharSequence getPageTitle(int position){
         return titles[position];
+    }
+
+    void addHub(BluetoothDevice device){
+        HubFragment hf = (HubFragment)fragments[hub_rank];
+        hf.addHub(device);
+    }
+
+    HubData getHub(String address){
+        HubFragment hf = (HubFragment)fragments[hub_rank];
+        return hf.getHub(address);
+    }
+
+    void initializeHub(String address){
+        HubFragment hf = (HubFragment)fragments[hub_rank];
+        hf.initialize(address);
+    }
+
+    boolean deliverHubData(String address, String data){
+        HubFragment hf = (HubFragment)fragments[hub_rank];
+        return hf.deliverData(address, data);
+    }
+
+    void notifyHubDSO(){
+        HubFragment hf = (HubFragment)fragments[hub_rank];
+        hf.notifyDSO();
+    }
+
+    void enableWrite(){
+        SensorFragment sf = (SensorFragment)fragments[sensor_rank];
+        sf.enableWrite();
+    }
+
+    void addSensor(BluetoothDevice device){
+        SensorFragment sf = (SensorFragment)fragments[sensor_rank];
+        sf.addSensor(device);
+    }
+
+    void connectSensor(String address, BluetoothDevice device){
+        SensorFragment sf = (SensorFragment)fragments[sensor_rank];
+        sf.connectSensor(address, device);
+    }
+
+    void updateSensorNotification(String address){
+        SensorFragment sf = (SensorFragment)fragments[sensor_rank];
+        sf.updateNotification(address);
+    }
+
+    void updateSensorTemperature(String address){
+        SensorFragment sf = (SensorFragment)fragments[sensor_rank];
+        sf.updateTemperature(address);
+    }
+
+    void updateSensorHumidity(String address){
+        SensorFragment sf = (SensorFragment)fragments[sensor_rank];
+        sf.updateHumidity(address);
+    }
+
+    void deliverSensorData(String address, String data){
+        SensorFragment sf = (SensorFragment)fragments[sensor_rank];
+        sf.deliverData(address, data);
+    }
+
+    void notifySensorDSO(){
+        SensorFragment sf = (SensorFragment)fragments[sensor_rank];
+        sf.notifyDSO();
+    }
+
+    void disconnectSensor(String address){
+        SensorFragment sf = (SensorFragment)fragments[sensor_rank];
+        sf.disconnect(address);
     }
 }

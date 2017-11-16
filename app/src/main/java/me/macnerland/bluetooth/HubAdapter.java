@@ -1,5 +1,6 @@
 package me.macnerland.bluetooth;
 
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.content.Context;
 import android.database.DataSetObserver;
@@ -49,9 +50,11 @@ class HubAdapter implements ListAdapter {
         }
     }
 
-    void addHub(BluetoothGatt bg){
-        hubs.add(new HubData(bg));
-        hubIndex.put(bg.getDevice().getAddress(), hubs.size() - 1);
+    void addHub(Context c, BluetoothDevice bd){
+        if(!hubIndex.keySet().contains(bd.getAddress())) {
+            hubs.add(new HubData(c, bd));
+            hubIndex.put(bd.getAddress(), hubs.size() - 1);
+        }
     }
 
     HubData getHub(String MAC){
@@ -62,10 +65,9 @@ class HubAdapter implements ListAdapter {
     }
 
     boolean deliverData(String address, String data){
-        if(hubIndex.keySet().contains(address)){
-            return hubs.get(hubIndex.get(address)).receiveData(data);
-        }
-        return false;
+        return hubIndex.keySet().contains(address) &&
+                hubs.get(hubIndex.get(address)).receiveData(data);
+
     }
 
     void initialize(String address){

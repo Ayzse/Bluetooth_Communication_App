@@ -1,5 +1,6 @@
 package me.macnerland.bluetooth;
 
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
@@ -38,10 +39,6 @@ class SensorAdapter implements ExpandableListAdapter {
     private final Vector<SensorData> sensors;
     private final Context context;
 
-
-    //private static final UUID sensorServiceGattUUID = UUID.fromString("0000ece1-0000-1000-8000-00805f9b34fb");
-    private static final UUID sensorCharacteristicUUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
-
     //these bytes are used to command the sensor to return values
     private static final byte[] TempCommand = {(byte)'1', (byte)'\n', (byte)'\0'};
     private static final byte[] HumidCommand = {(byte)'2', (byte)'\n', (byte)'\0'};
@@ -54,6 +51,8 @@ class SensorAdapter implements ExpandableListAdapter {
         DSO = new Vector<>();
         sensorIndex = new Hashtable<>();
     }
+
+    /*BEGIN dataflow methods*/
 
     //this should only be called once in this activity's lifecycle,
     //calling it extra times will add duplicate data to the sensors, appearance, but not the CSVs
@@ -103,10 +102,14 @@ class SensorAdapter implements ExpandableListAdapter {
         for(SensorData s : sensors){
             s.enableWrite();
         }
+        notifyDSO();
     }
 
+
+/*
     void addSensor(BluetoothGatt bg, Context c){
         String address = bg.getDevice().getAddress();
+        //String address = bg.getDevice().getAddress();
         Log.d(TAG, "adding sensor with address" + address);
         //If this address has never been seen before, add it into the list.
         if(!sensorIndex.keySet().contains(address)) {
@@ -116,17 +119,19 @@ class SensorAdapter implements ExpandableListAdapter {
             sensorIndex.put(address, sensors.size() - 1);
         }else{
             Log.e(TAG, "Trying to add in sensor that already has data");
-            sensors.get(sensorIndex.get(address)).connectGatt(bg);
+            if(bg.getService(Constant.sensorServiceGattUUID) != null) {
+                sensors.get(sensorIndex.get(address)).connectGatt(bg);
+            }
         }
         notifyDSO();
-    }
+    }*/
 
     void updateNotification(String address){
         BluetoothGatt bg = sensors.get(sensorIndex.get(address)).getGATT();
         if(bg != null) {
             BluetoothGattService bgs = bg.getService(Constant.sensorServiceGattUUID);
             if(bgs != null) {
-                BluetoothGattCharacteristic bgc = bgs.getCharacteristic(sensorCharacteristicUUID);
+                BluetoothGattCharacteristic bgc = bgs.getCharacteristic(Constant.sensorCharacteristicUUID);
                 if (bgc != null){
                     int properties = bgc.getProperties();
                     if ((properties | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
@@ -143,13 +148,16 @@ class SensorAdapter implements ExpandableListAdapter {
             for (SensorData con : sensors) {
                 if (con.isConnected() && con.dataState == SensorData.NO_DATA_PENDING) {
                     BluetoothGatt gatt = con.getGATT();
+                    if(gatt == null){
+                        break;
+                    }
                     BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
                     if (bs == null) {
                         //services have not ben discovered
                         break;
                     }
                     BluetoothGattCharacteristic bgc =
-                            bs.getCharacteristic(sensorCharacteristicUUID);
+                            bs.getCharacteristic(Constant.sensorCharacteristicUUID);
                     if(bgc == null) {
                         Log.i(TAG, "null characteristic");
                         break;
@@ -165,9 +173,10 @@ class SensorAdapter implements ExpandableListAdapter {
             for (SensorData con : sensors) {
                 if (con.isConnected()) {
                     BluetoothGatt gatt = con.getGATT();
+                    if(gatt == null) break;
                     BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
                     if(bs == null) break;
-                    BluetoothGattCharacteristic bgc = bs.getCharacteristic(sensorCharacteristicUUID);
+                    BluetoothGattCharacteristic bgc = bs.getCharacteristic(Constant.sensorCharacteristicUUID);
                     if(bgc == null) break;
                     gatt.readCharacteristic(bgc);
                     con.dataState = SensorData.TEMPERATURE_DATA_PENDING;
@@ -188,9 +197,11 @@ class SensorAdapter implements ExpandableListAdapter {
             return;
         }
 
+        /*this method is to reconnect only.
         if(!gatt.connect()){
             return;
         }
+        */
 
         BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
         if(bs == null){
@@ -223,9 +234,11 @@ class SensorAdapter implements ExpandableListAdapter {
             return;
         }
 
+        /*
         if(!gatt.connect()){
             return;
         }
+        */
         BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
         if(bs == null){
             Log.e(TAG, "Bad Service");
@@ -248,13 +261,16 @@ class SensorAdapter implements ExpandableListAdapter {
         for (SensorData con : sensors) {
             if (con.isConnected() && con.dataState == SensorData.NO_DATA_PENDING) {
                 BluetoothGatt gatt = con.getGATT();
+                if(gatt == null){
+                    break;
+                }
                 BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
                 if (bs == null) {
                     //services have not ben discovered
                     break;
                 }
                 BluetoothGattCharacteristic bgc =
-                        bs.getCharacteristic(sensorCharacteristicUUID);
+                        bs.getCharacteristic(Constant.sensorCharacteristicUUID);
                 if (bgc == null) {
                     Log.i(TAG, "null characteristic");
                 } else {
@@ -267,10 +283,13 @@ class SensorAdapter implements ExpandableListAdapter {
         for (SensorData con : sensors) {
             if (con.isConnected()) {
                 BluetoothGatt gatt = con.getGATT();
+                if(gatt == null){
+                    break;
+                }
                 BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
                 if (bs == null) break;
                 BluetoothGattCharacteristic bgc =
-                        bs.getCharacteristic(sensorCharacteristicUUID);
+                        bs.getCharacteristic(Constant.sensorCharacteristicUUID);
                 gatt.readCharacteristic(bgc);
                 con.dataState = SensorData.HUMIDITY_DATA_PENDING;
             }
@@ -287,7 +306,7 @@ class SensorAdapter implements ExpandableListAdapter {
                     break;
                 }
                 BluetoothGattCharacteristic bgc =
-                        bs.getCharacteristic(sensorCharacteristicUUID);
+                        bs.getCharacteristic(Constant.sensorCharacteristicUUID);
                 if (bgc == null) {
                     Log.i(TAG, "null characteristic");
                 } else {
@@ -300,10 +319,13 @@ class SensorAdapter implements ExpandableListAdapter {
         for (SensorData con : sensors) {
             if (con.isConnected()) {
                 BluetoothGatt gatt = con.getGATT();
+                if(gatt == null){
+                    break;
+                }
                 BluetoothGattService bs = gatt.getService(Constant.sensorServiceGattUUID);
                 if (bs == null) break;
                 BluetoothGattCharacteristic bgc =
-                        bs.getCharacteristic(sensorCharacteristicUUID);
+                        bs.getCharacteristic(Constant.sensorCharacteristicUUID);
                 gatt.readCharacteristic(bgc);
                 con.dataState = SensorData.HUMIDITY_THEN_TEMP;
             }
@@ -315,9 +337,10 @@ class SensorAdapter implements ExpandableListAdapter {
         sensor.receiveData(value);
     }
 
-    void connectSensor(String address){
+
+    void connectSensor(String address, BluetoothDevice bd){
         if(sensorIndex.keySet().contains(address)){
-            sensors.get(sensorIndex.get(address)).Connect();
+            sensors.get(sensorIndex.get(address)).Connect(bd);
             notifyDSO();
         }else{
             Log.e(TAG, "Serious error: tried to connect non-existent sensor");
@@ -340,6 +363,7 @@ class SensorAdapter implements ExpandableListAdapter {
             dso.onChanged();
         }
     }
+
 
 
     /*BEGIN android list View methods*/
@@ -449,18 +473,6 @@ class SensorAdapter implements ExpandableListAdapter {
         }
     }
 
-    public int describeContents(){
-        return 0;
-    }
-
-    public void writeToParcel(Parcel out, int flags){
-
-        for(SensorData sd : sensors){
-            //parcel sensor data and write it into out
-        }
-
-    }
-
     public static final Parcelable.Creator<SensorAdapter> CREATOR
             = new Parcelable.Creator<SensorAdapter>(){
         public SensorAdapter createFromParcel(Parcel in){
@@ -472,13 +484,41 @@ class SensorAdapter implements ExpandableListAdapter {
         }
     };
 
+    /*
     private SensorAdapter(Parcel in){
         DSO = new Vector<>();
         sensorIndex = new Hashtable<>();
         sensors = new Vector<SensorData>();
         context = MainActivity.getContext();
+    }
+    */
 
+    void addSensor(Context c, BluetoothDevice bd){
+        String address = bd.getAddress();
+        if(!sensorIndex.keySet().contains(address)){
+            // if the MAC address hasn't been seen before
+            // Type I dataflow
 
+            SensorData sensorData = new SensorData(c, bd, can_write);
+            sensors.add(sensorData);
+            int idx = sensors.size() - 1;
+            sensorIndex.put(address, idx);
+            notifyDSO();
+        } else if(!sensors.get(sensorIndex.get(address)).isConnected()){
+            // MAC address has been seen before and has data that has been restored
+            // Type VI dataflow
+            SensorData sensorData = sensors.get(sensorIndex.get(address));
+            sensorData.connect(bd);
+            notifyDSO();
+
+        }
+        // otherwise there is a Type II dataflow, just ignore it.
     }
 
+    void disconnect(String address){
+        if(sensorIndex.keySet().contains(address)) {
+            int index = sensorIndex.get(address);
+            SensorData sd = sensors.get(index);
+        }
+    }
 }

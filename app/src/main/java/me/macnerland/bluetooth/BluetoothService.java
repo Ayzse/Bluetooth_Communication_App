@@ -2,7 +2,6 @@ package me.macnerland.bluetooth;
 
 import android.app.Activity;
 import android.app.Service;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
@@ -25,19 +24,17 @@ import java.util.UUID;
 
 /**
  * Created by Doug on 8/10/2016.
+ *
+ * This is a service that gets launched for each connected sensor and each connected hub.
+ * This handles all of the incoming data from the bluetooth devices and broadcasts it in an
+ * Intent to the MainActivity
  */
 public class BluetoothService extends Service {
     private static final String TAG = "BluetoothService";
     public final static String EXTRA_DATA = "EXTRA";
     public final static String ADDRESS_DATA = "ADDRESS";
+    public final static String DEVICE_DATA = "DEVICE";
 
-    private static final UUID sensorServiceGattUUID = UUID.fromString("0000feed-0000-1000-8000-00805f9b34fb");
-    private static final UUID sensorCharacteristicUUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
-    private static UUID[] sensorUUID = {sensorServiceGattUUID};
-
-    private BluetoothManager mBluetoothManager;
-    private BluetoothAdapter mBluetoothAdapter;
-    private String mBluetoothDeviceAddress;
     private BluetoothGatt mBluetoothGatt;
     private int mConnectionState = STATE_DISCONNECTED;
 
@@ -67,16 +64,12 @@ public class BluetoothService extends Service {
     public final static String HUB_ACTION_DATA_AVAILABLE =
             "edu.uiuc.bluetooth.HUB_ACTION_DATA_AVAILABLE";
 
-    private static final byte[] TempCommand = {(byte)'2', (byte)'\n'};
-    private static final byte[] HumidCommand = {(byte)'1', (byte)'\n'};
-
     private static BluetoothManager bluetoothManager;
-    private static BluetoothAdapter bluetoothAdapter;
 
     //A hash that relates MAC addresses to sensordata
     private HashMap<String, SensorData> sensors;
 
-    public class LocalBinder extends Binder {
+    class LocalBinder extends Binder {
         BluetoothService getService() {
             return BluetoothService.this;
         }
@@ -108,8 +101,6 @@ public class BluetoothService extends Service {
         super.onCreate();
         Log.e(TAG, "creating new service");
         bluetoothManager = (BluetoothManager)this.getSystemService(Service.BLUETOOTH_SERVICE);
-        bluetoothAdapter = bluetoothManager.getAdapter();
-        return;
     }
 
     @Override
@@ -146,31 +137,29 @@ public class BluetoothService extends Service {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 gatt.discoverServices();
                 intentAction = SENSOR_ACTION_GATT_CONNECTED;
-                broadcastUpdate(intentAction, gatt.getDevice().getAddress());
+                broadcastUpdate(intentAction, gatt.getDevice().getAddress(), gatt.getDevice());
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 intentAction = SENSOR_ACTION_GATT_DISCONNECTED;
                 mConnectionState = STATE_DISCONNECTED;
-                broadcastUpdate(intentAction, gatt.getDevice().getAddress());
+                broadcastUpdate(intentAction, gatt.getDevice().getAddress(), gatt.getDevice());
             }
         }
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                broadcastUpdate(SENSOR_ACTION_GATT_SERVICES_DISCOVERED, gatt.getDevice().getAddress());
+                broadcastUpdate(SENSOR_ACTION_GATT_SERVICES_DISCOVERED, gatt.getDevice().getAddress(), gatt.getDevice());
             }
         }
 
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            Log.i(TAG, "Sensor Characteristic Write");
             super.onCharacteristicWrite(gatt, characteristic, status);
         }
 
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt,
                                             BluetoothGattCharacteristic characteristic) {
-            Log.i(TAG, "Sensor Characteristic Changed");
             broadcastUpdate(SENSOR_ACTION_DATA_AVAILABLE, gatt.getDevice().getAddress(), characteristic);
         }
     };
@@ -182,19 +171,19 @@ public class BluetoothService extends Service {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 gatt.discoverServices();
                 intentAction = HUB_ACTION_GATT_CONNECTED;
-                intentAction = intentAction + " " + gatt.getDevice().getAddress();
+                //intentAction = intentAction + " " + gatt.getDevice().getAddress();
+                broadcastUpdate(intentAction, gatt.getDevice().getAddress(), gatt.getDevice());
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 intentAction = HUB_ACTION_GATT_DISCONNECTED;
                 mConnectionState = STATE_DISCONNECTED;
-                broadcastUpdate(intentAction, gatt.getDevice().getAddress());
+                broadcastUpdate(intentAction, gatt.getDevice().getAddress(), gatt.getDevice());
             }
         }
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                broadcastUpdate(HUB_ACTION_GATT_SERVICES_DISCOVERED, gatt.getDevice().getAddress());
-            } else {
+                broadcastUpdate(HUB_ACTION_GATT_SERVICES_DISCOVERED, gatt.getDevice().getAddress(), gatt.getDevice());
             }
         }
 
@@ -227,6 +216,13 @@ public class BluetoothService extends Service {
         sendBroadcast(intent);
     }
 
+    private void broadcastUpdate(final String action, final String address, final BluetoothDevice device) {
+        final Intent intent = new Intent(action);
+        intent.putExtra(ADDRESS_DATA, address);
+        intent.putExtra(DEVICE_DATA, device);
+        sendBroadcast(intent);
+    }
+
     private void broadcastUpdate(final String action,
                                  final String address,
                                  final BluetoothGattCharacteristic characteristic) {
@@ -237,14 +233,11 @@ public class BluetoothService extends Service {
         // http://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml
 
         // For all other profiles, writes the data formatted in HEX.
-        String returnData = "No return Data";
+        String returnData;
         byte[] data = characteristic.getValue();
         if (data != null && data.length > 0) {
-            final StringBuilder stringBuilder = new StringBuilder(data.length);
-            for(byte byteChar : data)
-                stringBuilder.append(String.format("%02X ", byteChar));
             returnData = new String(data);
-            intent.putExtra(EXTRA_DATA, returnData);// + "\n" + stringBuilder.toString());
+            intent.putExtra(EXTRA_DATA, returnData);
         }
         intent.putExtra(ADDRESS_DATA, address);
 
