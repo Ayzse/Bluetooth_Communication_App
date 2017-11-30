@@ -1,7 +1,6 @@
-package me.macnerland.bluetooth;
+package land.macner.bluetooth;
 
 import android.bluetooth.BluetoothDevice;
-import android.content.Context;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;

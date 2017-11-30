@@ -1,22 +1,16 @@
-package me.macnerland.bluetooth;
+package land.macner.bluetooth;
 
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
 import android.content.Context;
 import android.database.DataSetObserver;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ListAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
-
-import org.w3c.dom.Text;
 
 import java.util.Hashtable;
 import java.util.Vector;
@@ -131,8 +125,8 @@ class HubAdapter implements ListAdapter {
         HubData hub = hubs.get(position);
 
         String hubAlertNumber = "Alert number: " + hub.getAlertNumber();
-        String hubPortalNumber = "Portal number: " + hub.getPortalNumber();
-        String hubPortalFreq = "Portal Frequency: " + hub.getPortalFreq();
+        String hubPortalNumber = "Grainmeter number: " + hub.getPortalNumber();
+        String hubPortalFreq = "Grainmeter Frequency: " + hub.getPortalFreq();
         String hubLogFreq = "Logging Frequency: " + hub.getLogFrequency();
         String hubTime = "Time: " + hub.getTime();
         String hubDate = "Date: " + hub.getDate();

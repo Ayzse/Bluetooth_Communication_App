@@ -1,4 +1,4 @@
-package me.macnerland.bluetooth;
+package land.macner.bluetooth;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;

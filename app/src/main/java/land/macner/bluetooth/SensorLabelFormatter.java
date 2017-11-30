@@ -1,4 +1,4 @@
-package me.macnerland.bluetooth;
+package land.macner.bluetooth;
 
 import com.jjoe64.graphview.DefaultLabelFormatter;
 

@@ -1,6 +1,5 @@
-package me.macnerland.bluetooth;
+package land.macner.bluetooth;
 
-import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -14,18 +13,14 @@ import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.os.IBinder;
 import android.os.ParcelUuid;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.FragmentManager;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -39,7 +34,6 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.UUID;
-import java.util.Vector;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -52,12 +46,9 @@ public class MainActivity extends AppCompatActivity {
     private static final String[] marshmallow_permissions = {BluetoothService.PERMISSION, android.Manifest.permission.ACCESS_FINE_LOCATION,android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.READ_EXTERNAL_STORAGE,
             android.Manifest.permission.WRITE_EXTERNAL_STORAGE, android.Manifest.permission.BLUETOOTH};
 
-    //private SensorAdapter sensorAdapter;
-    //private HubAdapter hubAdapter;
     private static WebAdapter webAdapter;
 
     private static BluetoothAdapter bluetoothAdapter;
-    private static BluetoothService bluetooth;//personal bluetooth handler class
 
     //used for scanning for devices when API level >= 23
     private static BluetoothLeScanner bluetoothLeScanner;
@@ -70,7 +61,6 @@ public class MainActivity extends AppCompatActivity {
     private AppCompatImageView bluetoothStatus;
 
     //private static final String[] marshmallow_permissions = new String(){android.Manifest.permission.ACCESS_FINE_LOCATION};
-
     private static final String sensorAdapterSISkey = "SENSOR_ADAPT";
     private static final String hubAdapterSISkey = "HUB_ADAPT";
     private static final String pagerAdapterSISkey = "PAGER_ADAPT";
@@ -97,11 +87,7 @@ public class MainActivity extends AppCompatActivity {
         //This is critical to set here, future object instances may call getContext()
         context = this;
 
-        bluetooth = null;
-        webAdapter = new WebAdapter(context);
         adapter = new mPagerAdapter(this.getSupportFragmentManager(), getResources());
-
-
 
         ViewPager vp = (ViewPager) findViewById(R.id.pager);
         if(vp != null) {
@@ -242,18 +228,6 @@ public class MainActivity extends AppCompatActivity {
         return context;
     }
 
-    /*
-    public HubAdapter getHubAdapter(){
-        return hubAdapter;
-    }
-    */
-
-    /*
-    public SensorAdapter getSensorAdapter(){
-        return sensorAdapter;
-    }
-    */
-
     public static WebAdapter getWebAdapter(){
         return webAdapter;
     }
@@ -294,6 +268,12 @@ public class MainActivity extends AppCompatActivity {
         View target = (View)button.getParent();
         String address = view_to_address.get(target);
         adapter.disconnectSensor(address);
+    }
+
+    public void clear_graph(View button){
+        View target = (View)button.getParent();
+        String address = view_to_address.get(target);
+        adapter.clearGraph(address);
     }
 
     /****Hub scanning methods****/

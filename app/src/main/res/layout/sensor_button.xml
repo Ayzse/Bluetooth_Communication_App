@@ -17,13 +17,12 @@
         android:layout_toEndOf="@+id/get_temp"
         android:onClick="specific_humid"
         android:text="@string/humid"/>
-<!--
+
     <Button
         android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:id="@+id/dc"
-        android:layout_below="@id/get_temp"
-        android:onClick="disconnect_sensor"
-        android:text="@string/disconnect"/>
-        -->
+        android:layout_height="wrap_content"
+        android:id="@+id/clear"
+        android:layout_below="@+id/get_temp"
+        android:text="@string/clear"
+        android:onClick="clear_graph"/>
 </RelativeLayout>

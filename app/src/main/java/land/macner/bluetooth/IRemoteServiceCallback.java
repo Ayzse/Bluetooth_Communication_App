@@ -1,4 +1,4 @@
-package me.macnerland.bluetooth;
+package land.macner.bluetooth;
 
 /**
  * This is the callback to be used by the service

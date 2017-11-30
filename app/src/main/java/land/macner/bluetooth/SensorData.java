@@ -1,4 +1,4 @@
-package me.macnerland.bluetooth;
+package land.macner.bluetooth;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -198,7 +198,7 @@ class SensorData{
                     }
 
                     long time = Long.parseLong(timestamp);
-                    //insertTemp(temp, time);
+                    insertTemp(temp, time);
                 }
             }catch (IOException io){
                 Log.e(TAG, "temp 2:" + io.toString());
@@ -232,7 +232,7 @@ class SensorData{
                     }
 
                     long time = Long.parseLong(timestamp);
-                    //insertHumid(humid, time);
+                    insertHumid(humid, time);
                 }
             }catch (IOException io){
                 Log.e(TAG, "Humid 2:" + io.toString());
@@ -518,6 +518,13 @@ class SensorData{
             bluetoothGatt.disconnect();
             bluetoothDevice = null;
         }
+    }
+
+    void clearGraph(){
+        temperatureSeries = new PointsGraphSeries<>();
+        temperatureSeries.setColor(Color.BLUE);
+        humiditySeries = new PointsGraphSeries<>();
+        humiditySeries.setColor(Color.RED);
     }
 
     private class BluetoothConnection implements ServiceConnection{

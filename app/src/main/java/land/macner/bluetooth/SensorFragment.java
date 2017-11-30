@@ -1,8 +1,7 @@
-package me.macnerland.bluetooth;
+package land.macner.bluetooth;
 
 
 import android.bluetooth.BluetoothDevice;
-import android.content.Context;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
@@ -18,7 +17,6 @@ import android.widget.ExpandableListView;
 
 public class SensorFragment extends Fragment {
     private SensorAdapter sensorAdapter;
-
 
     @Nullable
     @Override
@@ -80,6 +78,12 @@ public class SensorFragment extends Fragment {
     void deliverData(String address, String data){
         if(sensorAdapter != null) {
             sensorAdapter.deliverData(address, data);
+        }
+    }
+
+    void clearGraph(String address){
+        if(sensorAdapter != null) {
+            sensorAdapter.clearGraph(address);
         }
     }
 

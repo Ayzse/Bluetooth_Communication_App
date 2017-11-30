@@ -1,9 +1,7 @@
-package me.macnerland.bluetooth;
+package land.macner.bluetooth;
 
-import android.content.DialogInterface;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ListAdapter;
 
 /**
  * Created by Doug on 4/22/17.

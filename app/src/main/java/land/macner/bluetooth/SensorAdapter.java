@@ -1,4 +1,4 @@
-package me.macnerland.bluetooth;
+package land.macner.bluetooth;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -15,7 +15,6 @@ import android.widget.ExpandableListAdapter;
 
 import java.io.File;
 import java.util.Hashtable;
-import java.util.UUID;
 import java.util.Vector;
 
 /**
@@ -519,6 +518,14 @@ class SensorAdapter implements ExpandableListAdapter {
         if(sensorIndex.keySet().contains(address)) {
             int index = sensorIndex.get(address);
             SensorData sd = sensors.get(index);
+        }
+    }
+
+    void clearGraph(String address){
+        if(sensorIndex.keySet().contains(address)) {
+            int index = sensorIndex.get(address);
+            SensorData sd = sensors.get(index);
+            sd.clearGraph();
         }
     }
 }

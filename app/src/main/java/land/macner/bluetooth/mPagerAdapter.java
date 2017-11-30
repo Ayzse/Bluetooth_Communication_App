@@ -1,4 +1,4 @@
-package me.macnerland.bluetooth;
+package land.macner.bluetooth;
 
 import android.bluetooth.BluetoothDevice;
 import android.content.res.Resources;
@@ -18,13 +18,14 @@ import java.util.Vector;
 class mPagerAdapter extends FragmentPagerAdapter {
 
     private static final String TAG = "PagerAdapter";
-    private static final String SENSOR_FRAGMENT = "sensor_fragment";
 
+    private static final String dataDisplayFClass = "me.macnerland.bluetooth.DataDisplayFragment";
     private static final String sensorFClass = "me.macnerland.bluetooth.SensorFragment";
     private static final String hubFClass = "me.macnerland.bluetooth.HubFragment";
 
     private static final int sensor_rank = 0;
     private static final int hub_rank = 1;
+    private static final int data_display_rank = 2;
 
     private Fragment[] fragments;
     private String[] titles;
@@ -47,20 +48,23 @@ class mPagerAdapter extends FragmentPagerAdapter {
         DSO = new Vector<>();
         titles = r.getStringArray(R.array.page_titles);
 
-        fragments = new Fragment[2];
+        fragments = new Fragment[3];
         fragments[hub_rank] = null;
         fragments[sensor_rank] = null;
+        fragments[data_display_rank] = null;
 
         // Try to restore previous fragments, if possible
         List<Fragment> lf = fm.getFragments();
         if(lf !=null) {
             for (Fragment f : lf) {
-                Log.e(TAG, f.getClass().getCanonicalName());
                 if(f.getClass().getCanonicalName().equals(sensorFClass)){
                     fragments[sensor_rank] = f;
                 }
                 if(f.getClass().getCanonicalName().equals(hubFClass)){
                     fragments[hub_rank] = f;
+                }
+                if(f.getClass().getCanonicalName().equals(dataDisplayFClass)){
+                    fragments[data_display_rank] = f;
                 }
             }
         }
@@ -71,6 +75,9 @@ class mPagerAdapter extends FragmentPagerAdapter {
         }
         if(fragments[sensor_rank] == null) {
             fragments[sensor_rank] = new SensorFragment();
+        }
+        if(fragments[data_display_rank] == null){
+            //fragments[data_display_rank] = new DataDisplayFragment();
         }
     }
 
@@ -160,5 +167,11 @@ class mPagerAdapter extends FragmentPagerAdapter {
     void disconnectSensor(String address){
         SensorFragment sf = (SensorFragment)fragments[sensor_rank];
         sf.disconnect(address);
+    }
+
+    void clearGraph(String address){
+        SensorFragment sf = (SensorFragment)fragments[sensor_rank];
+        sf.clearGraph(address);
+        sf.notifyDSO();
     }
 }
