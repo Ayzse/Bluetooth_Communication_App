@@ -34,6 +34,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 
 import static android.content.Context.BIND_AUTO_CREATE;
+import static java.lang.Math.log;
 
 /**
  * Provides the data and interface for a sensor
@@ -51,6 +52,12 @@ class SensorData{
     private final String address;
     private Float currTemp;
     private Float currHumid;
+
+    //corn, wheat (soft), rice (rough), soybeans
+    int grain = 0;
+    float[] EMC_C = {30.205f,35.662f,35.703f,100.2888f};
+    float[] EMC_E = {0.33872f,0.27908f,0.29394f,0.071853f};
+    float[] EMC_F = {0.05897f,0.04236f,0.046015f,0.071853f};
 
     private BluetoothDevice bluetoothDevice;
     private BluetoothService bluetoothService;
@@ -261,7 +268,6 @@ class SensorData{
 
     void Connect(BluetoothDevice bd){
         connected = true;
-        //bd.
     }
 
     void Disconnect(){
@@ -285,7 +291,6 @@ class SensorData{
             Log.e(TAG, "sensor error: check connection between temp/hum detector and sensor board");
             return;
         }
-
         try {
             valueAsFloat = Float.parseFloat(value);
         }catch(NumberFormatException nfe){
@@ -323,7 +328,9 @@ class SensorData{
                 }
                 break;
             case SensorData.HUMIDITY_THEN_TEMP:
-                currHumid = valueAsFloat;
+                currHumid = (float)(EMC_E[grain] - EMC_F[grain]*log(-(currTemp+EMC_C[grain]) * log(valueAsFloat/100)));
+
+                // currHumid = valueAsFloat;
                 humiditySeries.appendData(
                         new DataPoint(gregorianCalendar.getTime(), (double) valueAsFloat),
                         true, 10);
@@ -454,7 +461,7 @@ class SensorData{
         }
     }
 
-    View.OnClickListener humidityListener = new View.OnClickListener() {
+    private View.OnClickListener humidityListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
         if(dataState != NO_DATA_PENDING || bluetoothGatt == null){
@@ -480,7 +487,7 @@ class SensorData{
         }
     };
 
-    View.OnClickListener temperatureListener = new View.OnClickListener() {
+    private View.OnClickListener temperatureListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
             if(dataState != NO_DATA_PENDING || bluetoothGatt == null){
