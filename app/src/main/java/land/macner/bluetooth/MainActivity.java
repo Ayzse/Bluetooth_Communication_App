@@ -17,6 +17,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.hardware.Sensor;
 import android.os.Build;
 import android.os.ParcelUuid;
 import android.support.annotation.NonNull;
@@ -39,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
 
     private final static String TAG = "Main";
     private final static int REQUEST_ENABLE_BT = 1;
-    private mPagerAdapter adapter;
+    private static mPagerAdapter adapter;
     private Context context;
 
 
@@ -120,6 +121,10 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
 
+    }
+
+    static mPagerAdapter getAdapter(){
+        return adapter;
     }
 
     static void register_view_to_address(View v, String a){
@@ -274,6 +279,10 @@ public class MainActivity extends AppCompatActivity {
         View target = (View)button.getParent();
         String address = view_to_address.get(target);
         adapter.clearGraph(address);
+    }
+
+    public SensorAdapter getSensorAdapter(){
+        return adapter.getSensorAdapter();
     }
 
     /****Hub scanning methods****/

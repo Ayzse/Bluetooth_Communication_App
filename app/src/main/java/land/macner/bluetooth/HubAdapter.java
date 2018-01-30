@@ -33,9 +33,8 @@ class HubAdapter implements ListAdapter {
         DSO = new Vector<>();
         context = c;
 
-       /* HubData dummyHub = new HubData("630-217-6714", "555-925-7878", "8", "1", "5:09", "4/22/17", "100", "80");
-        hubs.add(dummyHub);
-        hubIndex.put("helloworld", hubs.size() - 1);*/
+        hubs.add(new HubData(c));
+        //hubIndex.put(bd.getAddress(), hubs.size() - 1);
     }
 
     void notifyDSO(){
@@ -125,8 +124,8 @@ class HubAdapter implements ListAdapter {
         HubData hub = hubs.get(position);
 
         String hubAlertNumber = "Alert number: " + hub.getAlertNumber();
-        String hubPortalNumber = "Grainmeter number: " + hub.getPortalNumber();
-        String hubPortalFreq = "Grainmeter Frequency: " + hub.getPortalFreq();
+        String hubPortalNumber = "Portal number: " + hub.getPortalNumber();
+        String hubPortalFreq = "Portal Frequency: " + hub.getPortalFreq();
         String hubLogFreq = "Logging Frequency: " + hub.getLogFrequency();
         String hubTime = "Time: " + hub.getTime();
         String hubDate = "Date: " + hub.getDate();

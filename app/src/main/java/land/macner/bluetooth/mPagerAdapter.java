@@ -75,10 +75,17 @@ class mPagerAdapter extends FragmentPagerAdapter {
         }
         if(fragments[sensor_rank] == null) {
             fragments[sensor_rank] = new SensorFragment();
+            fragments[data_display_rank] = null;
         }
         if(fragments[data_display_rank] == null){
+            //fragments[data_display_rank] = new DataDisplayFragment(fragments[sensor_rank]);
             //fragments[data_display_rank] = new DataDisplayFragment();
         }
+    }
+
+    SensorAdapter getSensorAdapter(){
+        SensorFragment sf = (SensorFragment)fragments[sensor_rank];
+        return sf.getSensorAdapter();
     }
 
     @Override

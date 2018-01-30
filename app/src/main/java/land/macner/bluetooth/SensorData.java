@@ -2,6 +2,8 @@ package land.macner.bluetooth;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -15,6 +17,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 
 import com.jjoe64.graphview.GraphView;
@@ -77,6 +80,10 @@ class SensorData{
     static final int TEMPERATURE_DATA_PENDING = 1;
     static final int HUMIDITY_DATA_PENDING = 2;
     static final int HUMIDITY_THEN_TEMP = 3;
+
+    //these bytes are used to command the sensor to return values
+    private static final byte[] TempCommand = {(byte)'1', (byte)'\n', (byte)'\0'};
+    private static final byte[] HumidCommand = {(byte)'2', (byte)'\n', (byte)'\0'};
 
     //create a disconnected sensor. This is called when restoring a sensor from csv
     SensorData(String address, String nme, Context c, boolean can_write){
@@ -380,6 +387,12 @@ class SensorData{
             case 0:
                 v = inflater.inflate(R.layout.sensor_button, parent, false);
                 MainActivity.register_view_to_address(v, address);
+
+                Button humid = (Button)v.findViewById(R.id.get_humid);
+                humid.setOnClickListener(humidityListener);
+
+                Button temp = (Button)v.findViewById(R.id.get_temp);
+                temp.setOnClickListener(temperatureListener);
                 return v;
             case 1:
                 v = inflater.inflate(R.layout.sensor_graph, parent, false);
@@ -402,6 +415,8 @@ class SensorData{
     int nChildren(){
         return numberChildren;
     }
+
+    int dChildren() {return 1; }
 
     void onPause(){
         if(osw_humid !=null){
@@ -439,39 +454,59 @@ class SensorData{
         }
     }
 
-
-    public int describeContents(){
-        return 0;
-    }
-
-    public void writeToParcel(Parcel out, int flags){
-
-
-
-    }
-
-    public static final Parcelable.Creator<SensorAdapter> CREATOR
-            = new Parcelable.Creator<SensorAdapter>(){
-        public SensorAdapter createFromParcel(Parcel in){
-            return null;
+    View.OnClickListener humidityListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+        if(dataState != NO_DATA_PENDING || bluetoothGatt == null){
+            return;
         }
 
-        public SensorAdapter[] newArray(int size){
-            return new SensorAdapter[size];
+        BluetoothGattService bs = bluetoothGatt.getService(Constant.sensorServiceGattUUID);
+        if(bs == null){
+            Log.e(TAG, "Bad Service");
+            return;
+        }
+
+        BluetoothGattCharacteristic bgc =
+                bs.getCharacteristic(Constant.sensorCharacteristicUUID);
+        if (bgc == null){
+            Log.e(TAG, "Bad Characteristic");
+            return;
+        }
+
+        bgc.setValue(HumidCommand);
+        bluetoothGatt.writeCharacteristic(bgc);
+        dataState = SensorData.HUMIDITY_DATA_PENDING;
         }
     };
 
-    /*
-    private SensorData(Parcel in){
-        context = MainActivity.getContext();
+    View.OnClickListener temperatureListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            if(dataState != NO_DATA_PENDING || bluetoothGatt == null){
+                return;
+            }
 
-        name = in.readString();
-        address = in.readString();
-    }
-    */
+            BluetoothGattService bs = bluetoothGatt.getService(Constant.sensorServiceGattUUID);
+            if(bs == null){
+                Log.e(TAG, "Bad Service");
+                return;
+            }
+
+            BluetoothGattCharacteristic bgc =
+                    bs.getCharacteristic(Constant.sensorCharacteristicUUID);
+            if (bgc == null){
+                Log.e(TAG, "Bad Characteristic");
+                return;
+            }
+
+            bgc.setValue(TempCommand);
+            bluetoothGatt.writeCharacteristic(bgc);
+            dataState = SensorData.TEMPERATURE_DATA_PENDING;
+        }
+    };
 
 
-    /*BEGIN fix methods*/
     //Type I dataflow method, used to add new sensors to the phone
     SensorData(Context c, BluetoothDevice bd, boolean can_write){
         context = c;

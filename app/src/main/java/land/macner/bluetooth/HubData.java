@@ -146,6 +146,26 @@ class HubData implements HubInterface{
         //initialize();
     }
 
+    HubData(Context c){
+        datastate = HUB_NO_DATA_PENDING;
+        context = c;
+
+
+        selected_command = 0;
+
+        hubAlertNumber = "5558348989";
+        hubPortalNumber = "555001002";
+        hubPortalFreq = "4";
+        hubLogFreq = "2";
+        hubTime = "151250977";
+        hubDate = "11 11 17";
+        hubCritTemp = "34";
+        hubCritHum = "65";
+
+        isConnected = false;
+        initializing = false;
+    }
+
     private class BluetoothConnection implements ServiceConnection {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
